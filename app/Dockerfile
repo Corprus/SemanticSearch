@@ -7,7 +7,7 @@ RUN pip install --no-cache-dir -r /app/requirements.txt
 
 # --- Для разработки: исходники подключаются volume ---
 # --- Для прода: загружаем исходники прямо в образ, надо закомментить в docker-compose и раскомментить тут ---
-# COPY src/ /app/src/
+# COPY . /app/
 
 EXPOSE 8000
 
