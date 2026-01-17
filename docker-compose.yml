@@ -2,11 +2,11 @@ services:
   database:
     image: postgres:16-alpine
     env_file:
-      - ./envs/database.env
+      - ./.env
     ports:
       - "5432:5432"
     volumes:
-      - ./volumes/db_data:/var/lib/postgresql/data
+      - postgres_volume:/var/lib/postgresql/data
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB -h localhost" ]
       interval: 5s
@@ -15,11 +15,13 @@ services:
 
   rabbitmq:
     image: rabbitmq:3-management
+    env_file:
+      - ./.env
     ports:
       - "15672:15672"
       - "5672:5672"
     volumes:
-      - ./volumes/rabbitmq:/var/lib/rabbitmq
+      - rabbitmq_volume:/var/lib/rabbitmq
     restart: on-failure
     healthcheck:
       test: [ "CMD-SHELL", "rabbitmq-diagnostics -q ping" ]
@@ -31,9 +33,7 @@ services:
     build:
       context: ./app
     env_file:
-      - ./envs/app.env
-      - ./envs/database.env
-      - ./envs/rabbitmq.env
+      - ./.env
     volumes:
       - ./app:/app
     environment:
@@ -51,6 +51,10 @@ services:
     #Тут healthcheck для самого приложения, для этого сделал health.py
     healthcheck:
       test: [ "CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()\"" ]
+      interval: 30s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
 
   web-proxy:
     image: nginx:1.27-alpine
@@ -62,3 +66,7 @@ services:
       - "443:443"
     volumes:
       - ./web-proxy/conf.d:/etc/nginx/conf.d:ro
+
+volumes:
+  postgres_volume:
+  rabbitmq_volume:
