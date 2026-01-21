@@ -1,26 +1,42 @@
 from uuid import UUID
-from app.domain.entities.user import User, UserRole
-from app.domain.interfaces.password_hasher import PasswordHasher
-from app.services.exceptions import UserAlreadyExistsException, UserNotExistsException
+
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from models.user import User, UserRole
+from domain.interfaces.password_hasher import PasswordHasher
+from services.exceptions import UserAlreadyExistsException, UserNotExistsException
 
 
 class UserService:
-    def __init__(self, password_hasher: PasswordHasher):
+    def __init__(self, session: Session, password_hasher: PasswordHasher):
+        self._session = session
         self.password_hasher = password_hasher
 
     def create_user(self, login: str, password: str, role: UserRole) -> User:
         if self.find_user(login) is not None:
             raise UserAlreadyExistsException()
         pwd_hash = self.password_hasher.hash(password)
-        ...
-
-    def delete_user(self, user_id: UUID) -> None:
-        if self.find_user_by_id(user_id) is None:
-            raise UserNotExistsException()
-        ...
-
-    def find_user(self, login) -> User:
-        ...
+        user = User(
+            login=login,
+            password_hash=pwd_hash,
+            role=role
+        )
+        self._session.add(user)
+        self._session.flush()
+        return user
     
-    def find_user_by_id(self, id) -> User:
-        ...        
+    def delete_user(self, user_id: UUID) -> None:
+        user = self.find_user_by_id(user_id)
+        if user is None:
+            raise UserNotExistsException()
+
+        self._session.delete(user)
+        self._session.flush()
+
+    def find_user(self, login: str) -> User | None:
+        stmt = select(User).where(User.login == login)
+        return self._session.execute(stmt).scalars().first()
+
+    def find_user_by_id(self, id: UUID) -> User | None:
+        return self._session.get(User, str(id))   
