@@ -1,6 +1,6 @@
 # app/infrastructure/security/md5_hasher.py
 import hashlib
-from app.domain.interfaces.password_hasher import PasswordHasher
+from domain.interfaces.password_hasher import PasswordHasher
 
 class Md5PasswordHasher(PasswordHasher):
     """
