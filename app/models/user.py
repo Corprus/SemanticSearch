@@ -50,12 +50,6 @@ class User(Base, CrudMixin):
         default=UserRole.USER.value,
     )
 
-    balance: Mapped[Decimal] = mapped_column(
-        Numeric(18, 2),
-        nullable=False,
-        default=Decimal("0.00"),
-    )
-
     transactions: Mapped[list["Transaction"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
@@ -64,6 +58,6 @@ class User(Base, CrudMixin):
     def __repr__(self) -> str:
         return (
             f"User(id={self.id}, "
-            f"login={self.login}, balance={self.balance}, "
+            f"login={self.login}"
             f"role={self.role})"
         )

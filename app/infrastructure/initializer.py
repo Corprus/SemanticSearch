@@ -52,7 +52,9 @@ def init(settings: DatabaseSettings, drop_all: bool = True) -> None:
 
             print("== Состояние пользователей ==")
             print(user)
+            print("User " , user.login, "balance:", transaction_service.get_balance(UUID(user.id)))
             print(admin)
+            print("User " , admin.login, "balance:", transaction_service.get_balance(UUID(admin.id)))
 
             print("== Загрузка пользовательских доков, должны сняться кредиты, и 'индексироваться' доки ==")
             d1 = document_service.add_document(UUID(user.id), "Cats", "Cats are wonderful animals")
@@ -61,7 +63,9 @@ def init(settings: DatabaseSettings, drop_all: bool = True) -> None:
 
             print("== Состояние пользователей ==")
             print(user)
+            print("User " , user.login, "balance:", transaction_service.get_balance(UUID(user.id)))
             print(admin)
+            print("User " , admin.login, "balance:", transaction_service.get_balance(UUID(admin.id)))
 
             print("== Поиск ==")
             results = search_service.search(UUID(user.id), "cats animals", top_k=5)
@@ -78,7 +82,9 @@ def init(settings: DatabaseSettings, drop_all: bool = True) -> None:
 
             print("== Состояние пользователей ==")
             print(user)
+            print("User " , user.login, "balance:", transaction_service.get_balance(UUID(user.id)))
             print(admin)
+            print("User " , admin.login, "balance:", transaction_service.get_balance(UUID(admin.id)))
 
             session.commit()
             print("== DEMO DONE ==")

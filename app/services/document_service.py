@@ -36,8 +36,6 @@ class DocumentService:
             raise UserNotExistsException()
 
         # списываем кредит
-        transaction_id = self._transaction_service.withdraw_credit(user_id, self._upload_cost)
-
         # создаём документ
         doc = Document(
             owner_id=str(user_id),
@@ -46,6 +44,9 @@ class DocumentService:
         )
         self._session.add(doc)
         self._session.flush()
+
+
+        transaction_id = self._transaction_service.withdraw_credit(user_id, self._upload_cost, reason=TransactionType.DOCUMENT_UPLOAD, reference_id=UUID(doc.id))
 
         # проставляем транзакции причину и ссылку на документ
         tx = self._session.get(Transaction, str(transaction_id))

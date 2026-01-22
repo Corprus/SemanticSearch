@@ -58,29 +58,29 @@ class SearchService:
             raise UserNotExistsException()
 
         # 1) создаём Query
-        q = Query(
+        query = Query(
             user_id=str(user_id),
             query_text=query_text,
             cost=self._search_cost,
             transaction_id=None,
         )
-        self._session.add(q)
+        self._session.add(query)
         self._session.flush()
 
         # 2) списываем кредит
-        tx_id = self._transaction_service.withdraw_credit(user_id, self._search_cost)
+        transaction_id = self._transaction_service.withdraw_credit(user_id, self._search_cost, reason=TransactionType.SEARCH_QUERY, reference_id=UUID(query.id))
 
         # 3) обновляем транзакцию: reason + reference_id = query.id
-        tx = self._session.get(Transaction, str(tx_id))
+        tx = self._session.get(Transaction, str(transaction_id))
         if tx is not None:
             tx.reason = TransactionType.SEARCH_QUERY.value
-            tx.reference_id = q.id
+            tx.reference_id = query.id
             self._session.add(tx)
             self._session.flush()
 
         # 4) связываем query с transaction
-        q.transaction_id = str(tx_id)
-        self._session.add(q)
+        query.transaction_id = str(transaction_id)
+        self._session.add(query)
         self._session.flush()
 
         # 5) поиск через индекс (VectorIndex внутри IndexService)
@@ -123,7 +123,7 @@ class SearchService:
         # 6) пишем QueryResultItem в БД (для истории история)
         for rank, (doc, score) in enumerate(ordered_docs, start=1):
             item = QueryResultItem(
-                query_id=q.id,
+                query_id=query.id,
                 document_id=doc.id,
                 score=score,
                 rank=rank,
@@ -136,7 +136,7 @@ class SearchService:
             QueryResultItemDTO(document_id=UUID(doc.id), score=float(score), rank=rank)
             for rank, (doc, score) in enumerate(ordered_docs, start=1)
         )
-        return QueryResults(query_id=UUID(q.id), items=dto_items)
+        return QueryResults(query_id=UUID(query.id), items=dto_items)
 
     def search_documents(self, query_id : UUID) -> list[Document]:
         """Вернуть документы по поиску"""
