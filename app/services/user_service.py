@@ -1,5 +1,5 @@
 from uuid import UUID
-
+from typing import Optional, Sequence
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -35,8 +35,15 @@ class UserService:
         self._session.flush()
 
     def find_user(self, login: str) -> User | None:
-        stmt = select(User).where(User.login == login)
-        return self._session.execute(stmt).scalars().first()
+        query = select(User).where(User.login == login)
+        return self._session.execute(query).scalars().first()
 
     def find_user_by_id(self, id: UUID) -> User | None:
         return self._session.get(User, str(id))   
+
+    def list_users(self, role: Optional[UserRole] = None) -> Sequence[User]:
+        query = select(User)
+        if role is not None:
+            query = query.where(User.role == role)
+
+        return self._session.execute(query).scalars().all()

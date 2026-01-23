@@ -1,7 +1,7 @@
 # app/services/search_service.py
 from decimal import Decimal
 from uuid import UUID
-from typing import Iterable
+from typing import Iterable, Sequence
 
 from sqlalchemy import select, delete
 from sqlalchemy.orm import Session
@@ -19,11 +19,13 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class QueryResults:
     query_id: UUID
+    query: Query
     items: tuple["QueryResultItemDTO", ...]
 
 @dataclass(frozen=True)
 class QueryResultItemDTO:
     document_id: UUID
+    document_title: str
     score: float
     rank: int
 
@@ -133,10 +135,10 @@ class SearchService:
         self._session.flush()
 
         dto_items = tuple(
-            QueryResultItemDTO(document_id=UUID(doc.id), score=float(score), rank=rank)
+            QueryResultItemDTO(document_id=UUID(doc.id), document_title=doc.title, score=float(score), rank=rank)
             for rank, (doc, score) in enumerate(ordered_docs, start=1)
         )
-        return QueryResults(query_id=UUID(query.id), items=dto_items)
+        return QueryResults(query_id=UUID(query.id), items=dto_items, query=query)
 
     def search_documents(self, query_id : UUID) -> list[Document]:
         """Вернуть документы по поиску"""
@@ -148,30 +150,40 @@ class SearchService:
         )
         return list(self._session.execute(query).scalars().all())
     
+    def get_query(self, query_id: UUID, limit: int = 50, offset: int = 0) -> Sequence[Query]:
+        """Вернуть search query."""
+        query = (
+            select(Query)
+            .where(Query.id == str(query_id))
+        )
+        return self._session.execute(query).scalars().all()
+
+
     def get_history(self, user_id: UUID, limit: int = 50, offset: int = 0) -> list[QueryResults]:
         """Вернуть историю запросов пользователя."""
-        query = (
+        itemsQuery = (
             select(Query)
             .where(Query.user_id == str(user_id))
             .order_by(Query.created_at.desc())
             .limit(limit)
             .offset(offset)
         )
-        queries = list(self._session.execute(query).scalars().all())
+        queries = list(self._session.execute(itemsQuery).scalars().all())
 
         results: list[QueryResults] = []
         for q in queries:
-            items_stmt = (
-                select(QueryResultItem)
+            itemsQuery = (
+                select(QueryResultItem, Document.title.label("document_title"))
+                .join(Document, Document.id == QueryResultItem.document_id)
                 .where(QueryResultItem.query_id == q.id)
                 .order_by(QueryResultItem.rank.asc())
             )
-            items = list(self._session.execute(items_stmt).scalars().all())
+            rows = list(self._session.execute(itemsQuery).all())
             dto_items = tuple(
-                QueryResultItemDTO(document_id=UUID(it.document_id), score=float(it.score), rank=int(it.rank))
-                for it in items
+                QueryResultItemDTO(document_id=UUID(row[0].document_id), document_title=row[1], score=float(row[0].score), rank=int(row[0].rank))
+                for row in rows
             )
-            results.append(QueryResults(query_id=UUID(q.id), items=dto_items))
+            results.append(QueryResults(query_id=UUID(q.id), items=dto_items, query=q))
         return results
 
     def clear_history(self, user_id: UUID) -> None:

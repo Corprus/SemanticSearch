@@ -1,7 +1,7 @@
 from domain.interfaces.password_hasher import PasswordHasher
 from services.exceptions import InvalidCredentialsException
 from services.user_service import UserService
-
+from uuid import UUID
 class AuthService:
     """
     Сервис авторизации уже существующих пользователей
@@ -25,7 +25,7 @@ class AuthService:
         # Пока что заглушка
         return f"token:{user.id}"
 
-    def logout(self, login: str) -> None:
+    def logout(self, user_id: UUID) -> None:
         """
         Разлогинивает пользователя
         """
