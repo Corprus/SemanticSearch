@@ -1,0 +1,104 @@
+# app/routes/documents.py
+from __future__ import annotations
+
+from uuid import UUID
+from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, status
+from pydantic import BaseModel
+
+from services.document_service import DocumentService
+from infrastructure.deps import get_document_service
+
+router = APIRouter()
+
+
+class AddDocumentRequest(BaseModel):
+    user_id: UUID
+    title: str
+    content: str
+
+
+class DocumentResponse(BaseModel):
+    id: UUID
+    owner_id: UUID
+    title: str
+    content: str
+
+
+@router.put("", response_model=DocumentResponse, summary="Добавить документ пользователя")
+def add_document(req: AddDocumentRequest, docs: DocumentService = Depends(get_document_service)):
+    doc = docs.add_document(req.user_id, req.title, req.content)
+    return DocumentResponse(
+        id=UUID(doc.id),
+        owner_id=UUID(doc.owner_id),
+        title=doc.title,
+        content=doc.content,
+    )
+
+@router.post(
+    "/upload",
+    response_model=DocumentResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Загрузить документ пользователя из файла",
+)
+async def upload_document(
+    user_id: UUID = Form(...),
+    title: str = Form(...),
+    file: UploadFile = File(...),
+    docs: DocumentService = Depends(get_document_service),
+):
+    # Разрешаем только текстовые типы
+    allowed = {"text/plain", "text/markdown", "application/json"}
+    if file.content_type not in allowed:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail=f"Unsupported file type: {file.content_type}. Allowed: {sorted(allowed)}",
+        )
+
+    # Считываем файл
+    raw = await file.read()
+
+    # Лимит размера
+    max_bytes = 2 * 1024 * 1024  # 2MB
+    if len(raw) > max_bytes:
+        raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="File too large (max 2MB)")
+
+    # Превращаем в текст
+    try:
+        content = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="File must be UTF-8 encoded text")
+
+    # Прокидываем в севис
+    doc = docs.add_document(user_id=user_id, title=title, content=content)
+
+    return DocumentResponse(
+        id=UUID(doc.id),
+        owner_id=UUID(doc.owner_id),
+        title=doc.title,
+        content=doc.content,
+    )
+
+
+@router.get("/{document_id}", response_model=DocumentResponse, summary="Получить документ пользователя")
+def get_document(user_id: UUID, document_id: UUID, docs: DocumentService = Depends(get_document_service)):
+    doc = docs.get_document(user_id, document_id)
+    return DocumentResponse(
+        id=UUID(doc.id),
+        owner_id=UUID(doc.owner_id),
+        title=doc.title,
+        content=doc.content,
+    )
+
+
+@router.get("", response_model=list[DocumentResponse], summary="Получить все документы пользователя")
+def list_documents(user_id: UUID, docs: DocumentService = Depends(get_document_service)):
+    items = docs.list_documents(user_id)
+    return [
+        DocumentResponse(
+            id=UUID(d.id),
+            owner_id=UUID(d.owner_id),
+            title=d.title,
+            content=d.content,
+        )
+        for d in items
+    ]

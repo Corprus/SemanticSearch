@@ -1,0 +1,63 @@
+# app/routes/transactions.py
+from __future__ import annotations
+
+from decimal import Decimal
+from uuid import UUID
+from fastapi import APIRouter, Depends
+from pydantic import BaseModel, Field
+
+from services.transaction_service import TransactionService
+from infrastructure.deps import get_transaction_service
+from models.transaction import TransactionType
+from datetime import datetime
+
+router = APIRouter()
+
+
+class AddCreditRequest(BaseModel):
+    user_id: UUID
+    amount: Decimal = Field(gt=0)
+
+
+class TransactionIdResponse(BaseModel):
+    transaction_id: UUID
+
+
+@router.post("/credit", response_model=TransactionIdResponse, summary="Добавить деньги пользователю")
+def add_credit(req: AddCreditRequest, tx: TransactionService = Depends(get_transaction_service)):
+    tx_id = tx.add_credit(req.user_id, req.amount)
+    return TransactionIdResponse(transaction_id=tx_id)
+
+
+class WithdrawRequest(BaseModel):
+    user_id: UUID
+    amount: Decimal = Field(gt=0)
+    
+@router.post("/debit", response_model=TransactionIdResponse, summary="Снять деньгши с пользователя")
+def withdraw(req: WithdrawRequest, transaction_service: TransactionService = Depends(get_transaction_service)):
+    transaction_id = transaction_service.withdraw_credit(req.user_id, req.amount, TransactionType.CREDIT_WITHDRAW)
+    return TransactionIdResponse(transaction_id=transaction_id)
+
+
+class TransactionResponse(BaseModel):
+    id: UUID
+    timestamp: datetime
+    amount: str
+    reason: str
+    reference_id: UUID | None = None
+
+@router.get("/{user_id}", response_model=list[TransactionResponse], summary="Получить историю транзакций пользователя")
+def list_transactions(
+    user_id: UUID,
+    tx: TransactionService = Depends(get_transaction_service)):
+    items = tx.get_transaction_history(user_id)  # <-- подставь реальное имя метода
+    return [
+        TransactionResponse(
+            id=i.id if isinstance(i.id, UUID) else UUID(str(i.id)),
+            timestamp=i.timestamp,
+            amount=str(i.amount),
+            reason=str(i.reason),
+            reference_id=(i.reference_id if i.reference_id is None else (i.reference_id if isinstance(i.reference_id, UUID) else UUID(str(i.reference_id)))),
+        )
+        for i in items
+    ]

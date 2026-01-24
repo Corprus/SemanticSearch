@@ -16,6 +16,7 @@ class TransactionType(str, Enum):
     DOCUMENT_UPLOAD = "document_upload"
     SEARCH_QUERY = "search_query"
     CREDIT_ADD = "credit_add"
+    CREDIT_WITHDRAW = "credit_withdraw"
 
 class Transaction(Base):
     """

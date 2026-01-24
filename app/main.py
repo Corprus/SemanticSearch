@@ -27,6 +27,3 @@ if __name__ == "__main__":
     print(settings.POSTGRES_USER)
     
     init(settings, drop_all=True)
-
-    import uvicorn
-    uvicorn.run("main:app", host=HOST, port=PORT, reload=False)

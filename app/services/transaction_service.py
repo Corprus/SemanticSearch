@@ -40,7 +40,7 @@ class TransactionService:
         if user is None:
             raise UserNotExistsException()
 
-        with self._get_transactrion_context():
+        with self._get_transaction_context():
             acc = self._get_or_create_account_locked(user_id)
             acc.balance += amount
             acc.updated_at = datetime.now(timezone.utc)
@@ -64,7 +64,7 @@ class TransactionService:
         if user is None:
             raise UserNotExistsException()
 
-        with self._get_transactrion_context():
+        with self._get_transaction_context():
             acc = self._get_or_create_account_locked(user_id)
 
             if acc.balance < amount:
@@ -78,7 +78,6 @@ class TransactionService:
                 amount=-amount,
                 reason=reason.value,
                 reference_id=str(reference_id) if reference_id else None,
-                # balance_after=acc.balance
             )
             self._session.add(tx)
             self._session.flush()
@@ -110,6 +109,6 @@ class TransactionService:
         self._session.flush()
 
 
-    def _get_transactrion_context(self):
+    def _get_transaction_context(self):
         # Если транзакция уже начата (autobegin или внешний begin) — не начинаем новую
         return nullcontext() if self._session.in_transaction() else self._session.begin()
