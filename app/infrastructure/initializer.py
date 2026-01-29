@@ -67,7 +67,7 @@ def init(settings: DatabaseSettings, drop_all: bool = True) -> None:
 
             print(document_service.list_documents(UUID(user.id)))
 
-            deadline = time.time() + 60.0  # 60 секунд на демо
+            deadline = time.time() + 120.0
             while True:
                 qr1 = document_service.get_user_document(UUID(user.id), document_id=UUID(d1.id))
                 status1 = qr1.index_status

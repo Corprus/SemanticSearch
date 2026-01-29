@@ -72,7 +72,7 @@ services:
       - ./app:/app
     env_file:
       - ./.env
-    command: celery -A infrastructure.worker_app:worker_app worker --loglevel=INFO
+    command: celery -A infrastructure.worker_app:worker_app worker --loglevel=INFO --concurrency=${WORKER_CONCURRENCY} --pool=prefork
     depends_on:
       rabbitmq:
         condition: service_healthy
