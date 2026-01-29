@@ -7,6 +7,9 @@ from sqlalchemy.orm import Session
 
 from domain.interfaces.vector_index import VectorIndex
 from models.vector_index_entry import VectorIndexEntry
+import logging
+
+logger = logging.getLogger(__name__)
 
 class VectorIndexModel(VectorIndex):
     """
@@ -71,8 +74,9 @@ class VectorIndexModel(VectorIndex):
             else:
                 score = float(np.dot(q, v) / denom)
 
-            scored.append((UUID(e.document_id), score))
-
+            scored.append((UUID(e.document_id), score))            
+        
         scored.sort(key=lambda x: x[1], reverse=True)
+        logger.info(f"Scored:{scored}")
         return scored[:top_k]
 

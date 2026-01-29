@@ -139,7 +139,7 @@ class SearchService:
                         continue
                     ordered_docs.append((d, float(score)))
             
-            # 6) пишем QueryResultItem в БД (для истории история)
+            # 6) пишем QueryResultItem в БД (для истории)
             for rank, (doc, score) in enumerate(ordered_docs, start=1):
                 self._session.add(
                     QueryResultItem(

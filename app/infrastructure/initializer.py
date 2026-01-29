@@ -61,22 +61,22 @@ def init(settings: DatabaseSettings, drop_all: bool = True) -> None:
             print(admin)
             print("User " , admin.login, "balance:", transaction_service.get_balance(UUID(admin.id)))
 
-            print("== Загрузка пользовательских доков, должны сняться кредиты, и 'индексироваться' доки ==")
+            print("== Загрузка пользовательских доков, должны сняться кредиты, и индексироваться доки ==")
             d1 = document_service.add_document(UUID(user.id), "Cats", "Cats are wonderful animals")
             d2 = document_service.add_document(UUID(user.id), "Dogs", "Dogs are loyal friends")
 
             print(document_service.list_documents(UUID(user.id)))
 
-            deadline = time.time() + 30.0  # 30 секунд на демо
+            deadline = time.time() + 60.0  # 60 секунд на демо
             while True:
                 qr1 = document_service.get_user_document(UUID(user.id), document_id=UUID(d1.id))
                 status1 = qr1.index_status
                 qr2 = document_service.get_user_document(UUID(user.id), document_id=UUID(d2.id))
                 status2 = qr2.index_status
-                print(qr1)
-                print(qr2)
 
                 if status1 == DocumentIndexStatus.INDEXED.value and status2 == DocumentIndexStatus.INDEXED.value:                    
+                    print(qr1)
+                    print(qr2)
                     break
 
                 if status1 == DocumentIndexStatus.FAILED.value or status2 == DocumentIndexStatus.FAILED.value:
@@ -84,8 +84,9 @@ def init(settings: DatabaseSettings, drop_all: bool = True) -> None:
 
                 if time.time() >= deadline:
                     raise TimeoutError("Indexing timeout")
-
-                time.sleep(0.2)  # 200 мс
+                timetowait = 5
+                print(f"Doc id {qr1.id} status {status1}, Doc id {qr2.id} status {status2}. Waiting to index for {timetowait} sec")
+                time.sleep(timetowait)  # 5 сек
 
             print("== Состояние пользователей ==")
             print(user)
@@ -106,7 +107,7 @@ def init(settings: DatabaseSettings, drop_all: bool = True) -> None:
                 status = query_results.query.query_status
 
                 if status == QueryJobStatus.DONE.value:
-                    print(f"Query {query_id} status {status}")
+                    print(f"Query {query_id} status {status} ")
                     results = query_results
                     break
 
@@ -116,11 +117,11 @@ def init(settings: DatabaseSettings, drop_all: bool = True) -> None:
                 if time.time() >= deadline:
                     raise TimeoutError(f"Search timeout for query_id={query_id}")
 
-                timetowait = 0.2
+                timetowait = 5
                 print(f"Query {query_id} status {status}, waiting for {timetowait} sec")
-                time.sleep(timetowait)  # 200 мс
+                time.sleep(timetowait)
 
-            print("== Результаты поиска (через dummy заглушку embedder) ==")
+            print("== Результаты поиска ==")
             print("Query ID:", results.query_id)
             for item in results.items:
                 doc = document_service.get_user_document(UUID(user.id), item.document_id)
