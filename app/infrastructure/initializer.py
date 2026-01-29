@@ -1,6 +1,7 @@
-# app/infrastructure/demo.py
+# app/infrastructure/initializer.py
 from decimal import Decimal
 from uuid import UUID
+import time
 
 from database.database import Base, init_db, get_engine, get_session
 from services.user_service import UserService
@@ -15,6 +16,10 @@ from infrastructure.dummy_embedding_model import DummyEmbeddingModel
 from infrastructure.md5_hasher import Md5PasswordHasher
 from models.user import UserRole
 from database.config import DatabaseSettings
+
+from models.query import QueryJobStatus
+from models.document import DocumentIndexStatus
+from infrastructure.worker_task import process_search_query  # celery task
 
 
 
@@ -59,7 +64,28 @@ def init(settings: DatabaseSettings, drop_all: bool = True) -> None:
             print("== Загрузка пользовательских доков, должны сняться кредиты, и 'индексироваться' доки ==")
             d1 = document_service.add_document(UUID(user.id), "Cats", "Cats are wonderful animals")
             d2 = document_service.add_document(UUID(user.id), "Dogs", "Dogs are loyal friends")
+
             print(document_service.list_documents(UUID(user.id)))
+
+            deadline = time.time() + 30.0  # 30 секунд на демо
+            while True:
+                qr1 = document_service.get_user_document(UUID(user.id), document_id=UUID(d1.id))
+                status1 = qr1.index_status
+                qr2 = document_service.get_user_document(UUID(user.id), document_id=UUID(d2.id))
+                status2 = qr2.index_status
+                print(qr1)
+                print(qr2)
+
+                if status1 == DocumentIndexStatus.INDEXED.value and status2 == DocumentIndexStatus.INDEXED.value:                    
+                    break
+
+                if status1 == DocumentIndexStatus.FAILED.value or status2 == DocumentIndexStatus.FAILED.value:
+                    raise RuntimeError("Index failed")
+
+                if time.time() >= deadline:
+                    raise TimeoutError("Indexing timeout")
+
+                time.sleep(0.2)  # 200 мс
 
             print("== Состояние пользователей ==")
             print(user)
@@ -68,12 +94,36 @@ def init(settings: DatabaseSettings, drop_all: bool = True) -> None:
             print("User " , admin.login, "balance:", transaction_service.get_balance(UUID(admin.id)))
 
             print("== Поиск ==")
-            results = search_service.search(UUID(user.id), "cats animals", top_k=5)
+
+            query_id = search_service.create_query_job(UUID(user.id), "cats animals", top_k=5)
+            # 2) enqueue
+            process_search_query.delay(str(query_id))
+            print("== Поиск поставлен в очередь ==")
+
+            deadline = time.time() + 10.0  # 10 секунд на демо
+            while True:
+                query_results = search_service.get_query_results(UUID(user.id), query_id, limit=50, offset=0)
+                status = query_results.query.query_status
+
+                if status == QueryJobStatus.DONE.value:
+                    print(f"Query {query_id} status {status}")
+                    results = query_results
+                    break
+
+                if status == QueryJobStatus.FAILED.value:
+                    raise RuntimeError(f"Search failed for query_id={query_id}")
+
+                if time.time() >= deadline:
+                    raise TimeoutError(f"Search timeout for query_id={query_id}")
+
+                timetowait = 0.2
+                print(f"Query {query_id} status {status}, waiting for {timetowait} sec")
+                time.sleep(timetowait)  # 200 мс
 
             print("== Результаты поиска (через dummy заглушку embedder) ==")
             print("Query ID:", results.query_id)
             for item in results.items:
-                doc = document_service.get_document(UUID(user.id), item.document_id)
+                doc = document_service.get_user_document(UUID(user.id), item.document_id)
                 print(f"rank={item.rank} score={item.score:.3f} doc='{doc.title}' id={item.document_id}")
 
             print("== История транзакций ==")

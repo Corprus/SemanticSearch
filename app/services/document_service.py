@@ -1,17 +1,19 @@
 # app/services/document_service.py
 from decimal import Decimal
 from uuid import UUID
+from datetime import datetime, timezone
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from models.document import Document
+from models.document import Document, DocumentIndexStatus
 from models.transaction import Transaction, TransactionType
 from services.exceptions import DocumentNotFoundException, AccessDeniedException, UserNotExistsException
 from models.user import User
 from services.transaction_service import TransactionService
 from services.index_service import IndexService
 
+from infrastructure.worker_task import embed_document
 class DocumentService:
 
     def __init__(
@@ -57,21 +59,33 @@ class DocumentService:
             self._session.flush()
 
         # индексируем
-        self._index.index_document(user_id, UUID(doc.id))
+        self._session.commit()
+        embed_document.delay(str(user_id), str(doc.id))        
 
         return doc
 
-    def get_document(self, user_id: UUID, document_id: UUID) -> Document:
+    def get_user_document(self, user_id: UUID, document_id: UUID) -> Document:
         """
-        Получить документ из системы
+        Получить документ пользователя из системы
         """
         doc = self._session.get(Document, str(document_id))
         if doc is None:
             raise DocumentNotFoundException()
         if doc.owner_id != str(user_id):
             raise AccessDeniedException()
+        
+        self._session.refresh(doc)  # <-- ВОТ ЭТО
         return doc
-    
+
+    def get_document(self, document_id: UUID) -> Document:
+        """
+        Получить документ из системы
+        """
+        doc = self._session.get(Document, str(document_id))
+        if doc is None:
+            raise DocumentNotFoundException()
+        return doc
+
 
     def list_documents(self, user_id: UUID) -> list[Document]:
         """
@@ -95,3 +109,27 @@ class DocumentService:
         self._session.flush()
 
         self._index.remove_document(user_id, document_id)
+
+    def set_index_status(
+        self,
+        document_id: UUID,
+        status: DocumentIndexStatus,
+        error: str | None = None,
+    ) -> None:
+        """
+        Проставить статус документу
+        """
+        doc = self._session.get(Document, str(document_id))
+        if doc is None:
+            raise DocumentNotFoundException()
+
+        doc.index_status = status.value
+        doc.index_error = error
+
+        if status == DocumentIndexStatus.INDEXED:
+            doc.indexed_at = datetime.now(timezone.utc)
+        else:
+            doc.indexed_at = None
+
+        self._session.add(doc)
+        self._session.flush()

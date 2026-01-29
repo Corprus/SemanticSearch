@@ -3,14 +3,19 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from decimal import Decimal
 from uuid import uuid4
+from enum import Enum
 
-from sqlalchemy import DateTime, ForeignKey, Numeric, Text
+from sqlalchemy import DateTime, ForeignKey, Numeric, Text, String, Integer
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from database.database import Base
 from models.mixins import CrudMixin
 
+class QueryJobStatus(str, Enum):
+    PENDING = "pending"
+    DONE = "done"
+    FAILED = "failed"
 
 class Query(Base, CrudMixin):
     """
@@ -44,6 +49,16 @@ class Query(Base, CrudMixin):
         nullable=False,
         default=lambda: datetime.now(timezone.utc),
     )
+
+    query_status: Mapped[str] = mapped_column(
+        String(32),
+        nullable=False,
+        default=QueryJobStatus.PENDING.value,
+    )
+
+    query_error: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+
+    top_k: Mapped[int] = mapped_column(Integer, nullable=False, default=10)
 
     user = relationship("User")
     transaction = relationship("Transaction")

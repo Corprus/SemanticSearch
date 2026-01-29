@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from uuid import uuid4
+from decimal import Decimal
 
 from sqlalchemy import ForeignKey, Integer, Numeric, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
@@ -32,7 +33,7 @@ class QueryResultItem(Base, CrudMixin):
         nullable=False,
     )
 
-    score: Mapped[float] = mapped_column(Numeric(10, 6), nullable=False)
+    score: Mapped[Decimal] = mapped_column(Numeric(10, 6), nullable=False)
     rank: Mapped[int] = mapped_column(Integer, nullable=False)
 
     query: Mapped["Query"] = relationship(back_populates="results")

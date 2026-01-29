@@ -17,8 +17,17 @@ class IndexService:
         self._embedding_model = embedding_model or DummyEmbeddingModel()
         self._vector_index = vector_index
 
+    def remove_document(self, user_id: UUID, document_id: UUID) -> None:
+        """Удалить документ из VectorIndex."""
+        self._vector_index.delete(user_id=user_id, doc_id=document_id)
+
+    def search(self, user_id: UUID, query_text: str, top_k: int):
+        q_vec = self._embedding_model.embed(query_text)
+        return self._vector_index.query(q_vec, user_id, top_k)
+
     def index_document(self, user_id: UUID, document_id: UUID) -> None:
         """Посчитать embedding документа в VectorIndex."""
+
         doc = self._session.get(Document, str(document_id))
         if doc is None or doc.owner_id != str(user_id):
             return
@@ -27,11 +36,3 @@ class IndexService:
 
         # но внутри реализации VectorIndex (SqlAlchemyVectorIndex.upsert)
         self._vector_index.upsert(user_id=user_id, doc_id=document_id, vector=vector)
-
-    def remove_document(self, user_id: UUID, document_id: UUID) -> None:
-        """Удалить документ из VectorIndex."""
-        self._vector_index.delete(user_id=user_id, doc_id=document_id)
-
-    def search(self, user_id: UUID, query_text: str, top_k: int):
-        q_vec = self._embedding_model.embed(query_text)
-        return self._vector_index.query(q_vec, user_id, top_k)

@@ -17,6 +17,10 @@ services:
     image: rabbitmq:3-management
     env_file:
       - ./.env
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+      RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_VHOST}
     ports:
       - "15672:15672"
       - "5672:5672"
@@ -43,6 +47,7 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+
     expose:
       - "8000"
     # Раскомментить для прямого дебага без nginx
@@ -55,6 +60,22 @@ services:
       timeout: 3s
       retries: 10
       start_period: 10s
+
+  worker:
+    build: ./app
+    working_dir: /app
+    environment:
+      PYTHONPATH: /app
+    volumes:
+      - ./app:/app
+    env_file:
+      - ./.env
+    command: celery -A infrastructure.worker_app:worker_app worker --loglevel=INFO
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      database:
+        condition: service_healthy
 
   web-proxy:
     image: nginx:1.27-alpine

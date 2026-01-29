@@ -12,6 +12,8 @@ from database.config import DatabaseSettings
 class Base(DeclarativeBase):
     pass
 
+import models
+
 _engine = None
 _SessionLocal: sessionmaker[Session] | None = None
 

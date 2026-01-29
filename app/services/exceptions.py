@@ -23,6 +23,8 @@ class InsufficientBalanceException(ServiceException):
 class DocumentNotFoundException(ServiceException):
     """Документ не найден"""
 
+class QueryNotFoundException(ServiceException):
+    """Документ не найден"""
 
 class AccessDeniedException(ServiceException):
     """Нет доступа"""
