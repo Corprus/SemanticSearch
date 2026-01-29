@@ -64,10 +64,6 @@ services:
   worker:
     build: ./app
     working_dir: /app
-    environment:
-      PYTHONPATH: /app
-      HF_HUB_DISABLE_PROGRESS_BARS: "1"
-      TQDM_DISABLE: "1"
     volumes:
       - ./app:/app
     env_file:
