@@ -1,4 +1,4 @@
-# app/infrastructure/worker_task.py
+# worker/tasks.py
 import os
 from uuid import UUID
 from celery.utils.log import get_task_logger

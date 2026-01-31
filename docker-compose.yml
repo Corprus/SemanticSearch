@@ -69,7 +69,7 @@ services:
       - ./worker:/semantic-search/worker
       - ./common:/semantic-search/common
     environment:
-      - PYTHONPATH:/semantic-search
+      - PYTHONPATH=/semantic-search
     env_file:
       - ./.env
     command: celery -A worker.worker_app:worker_app worker --loglevel=INFO --concurrency=${WORKER_CONCURRENCY} --pool=prefork
