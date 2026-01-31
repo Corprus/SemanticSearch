@@ -7,7 +7,6 @@ from pydantic import BaseModel, Field
 
 from services.search_service import SearchService
 from infrastructure.deps import get_search_service
-from infrastructure.worker_task import process_search_query
 from datetime import datetime
 router = APIRouter()
 
@@ -37,7 +36,6 @@ class SearchResultResponse(BaseModel):
 def search(req: SearchRequest, search_service: SearchService = Depends(get_search_service)):
 
     query_id = search_service.create_query_job(req.user_id, req.query_text, req.top_k)    
-    process_search_query.delay(str(query_id))
     return SearchIdResponse(query_id=query_id)
 
 @router.get("/{query_id}", response_model=SearchResultResponse, summary="Получить результаты выполнения запроса")

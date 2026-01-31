@@ -3,13 +3,13 @@ from typing import TYPE_CHECKING
 
 from datetime import datetime, timezone
 from uuid import uuid4
+from enum import Enum
 
 from sqlalchemy import DateTime, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from database.database import Base
-from enum import Enum
+from common.database.database import Base
 
 if TYPE_CHECKING:
     from models.query_result_item import QueryResultItem

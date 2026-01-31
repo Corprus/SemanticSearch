@@ -34,14 +34,15 @@ services:
       retries: 20
 
   app:
-    build:
-      context: ./app
+    working_dir: /semantic-search
+    build: ./app
     env_file:
       - ./.env
     volumes:
-      - ./app:/app
+      - ./app:/semantic-search/app
+      - ./common:/semantic-search/common
     environment:
-      - PYTHONPATH=/app
+      - PYTHONPATH=/semantic-search
     depends_on:
       database:
         condition: service_healthy
@@ -62,13 +63,16 @@ services:
       start_period: 10s
 
   worker:
-    build: ./app
-    working_dir: /app
+    build: ./worker
+    working_dir: /semantic-search
     volumes:
-      - ./app:/app
+      - ./worker:/semantic-search/worker
+      - ./common:/semantic-search/common
+    environment:
+      - PYTHONPATH:/semantic-search
     env_file:
       - ./.env
-    command: celery -A infrastructure.worker_app:worker_app worker --loglevel=INFO --concurrency=${WORKER_CONCURRENCY} --pool=prefork
+    command: celery -A worker.worker_app:worker_app worker --loglevel=INFO --concurrency=${WORKER_CONCURRENCY} --pool=prefork
     depends_on:
       rabbitmq:
         condition: service_healthy

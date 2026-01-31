@@ -1,4 +1,4 @@
-# app/services/exceptions.py
+# app/exceptions.py
 
 class ServiceException(Exception):
     """Базовый класс для сервисных исключений"""

@@ -1,17 +1,18 @@
 # app/infrastructure/embedding/zero_embedding.py
 import numpy as np
-from domain.interfaces.embedding_model import EmbeddingModel
+from common.domain.interfaces.embedding_model import EmbeddingModel
 
 class DummyEmbeddingModel(EmbeddingModel):
     """
     Хоть и математичная, но неточная примерная апроксимация эмбеддингов.
     Требовалась для покрытия поиска, пока реальные модели не завезли.
     """
-    def __init__(self, dim: int = 64, name: str = "dummy-embed"):
+    def __init__(self, dim: int = 64):
         self.dim = dim
-        self.name = name
 
-
+    @property
+    def name(self) -> str:
+        return "dummy-embed"       
 
     def embed_batch(self, texts: list[str]) -> list[list[float]]:
         embeddings: list[list[float]] = []

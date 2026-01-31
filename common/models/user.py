@@ -1,16 +1,14 @@
 from __future__ import annotations
 
-from decimal import Decimal
 from enum import Enum
 from uuid import uuid4
 
-from sqlalchemy import String, Numeric
+from sqlalchemy import String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from database.database import Base
-from models.mixins import CrudMixin
-
+from common.database.database import Base
+from common.models.mixins import CrudMixin
 
 class UserRole(str, Enum):
     """

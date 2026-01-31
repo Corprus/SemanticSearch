@@ -5,7 +5,7 @@ from typing import Iterator
 from fastapi import Depends
 from sqlalchemy.orm import Session
 
-from database.database import get_session
+from common.database.database import get_session
 
 from services.user_service import UserService
 from services.auth_service import AuthService
@@ -15,8 +15,7 @@ from services.search_service import SearchService
 from services.index_service import IndexService
 
 from infrastructure.md5_hasher import Md5PasswordHasher
-from infrastructure.dummy_embedding_model import DummyEmbeddingModel
-from infrastructure.vector_index_model import VectorIndexModel
+from common.infrastructure.vector_index_model import VectorIndexModel
 
 
 def get_db() -> Iterator[Session]:
@@ -29,13 +28,8 @@ def get_password_hasher():
     return Md5PasswordHasher()
 
 
-def get_embedder():
-    return DummyEmbeddingModel()
-
-
 def get_vector_index(db: Session = Depends(get_db)):
-    embedder = get_embedder()
-    return VectorIndexModel(db, model_name=embedder.name)
+    return VectorIndexModel(db)
 
 
 def get_transaction_service(db: Session = Depends(get_db)) -> TransactionService:
@@ -57,8 +51,7 @@ def get_index_service(
 ) -> IndexService:
     return IndexService(
         session=db,
-        vector_index=get_vector_index(db),
-        embedding_model=get_embedder(),
+        vector_index=get_vector_index(db)
     )
 
 
@@ -75,4 +68,4 @@ def get_search_service(
     tx: TransactionService = Depends(get_transaction_service),
     index: IndexService = Depends(get_index_service),
 ) -> SearchService:
-    return SearchService(session=db, transaction_service=tx, index_service=index)
+    return SearchService(session=db, transaction_service=tx)

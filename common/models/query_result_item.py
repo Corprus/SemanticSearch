@@ -7,8 +7,8 @@ from sqlalchemy import ForeignKey, Integer, Numeric, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from database.database import Base
-from models.mixins import CrudMixin
+from common.database.database import Base
+from common.models.mixins import CrudMixin
 
 
 class QueryResultItem(Base, CrudMixin):

@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 
 from services.transaction_service import TransactionService
 from infrastructure.deps import get_transaction_service
-from models.transaction import TransactionType
+from common.models.transaction import TransactionType
 from datetime import datetime
 
 router = APIRouter()

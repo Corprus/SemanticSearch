@@ -1,0 +1,7 @@
+celery
+sqlalchemy
+numpy>=1.26
+psycopg[binary]
+pydantic-settings>=2.0
+torch
+sentence-transformers

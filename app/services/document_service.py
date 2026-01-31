@@ -1,19 +1,18 @@
 # app/services/document_service.py
 from decimal import Decimal
 from uuid import UUID
-from datetime import datetime, timezone
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from models.document import Document, DocumentIndexStatus
-from models.transaction import Transaction, TransactionType
-from services.exceptions import DocumentNotFoundException, AccessDeniedException, UserNotExistsException
-from models.user import User
+from common.models.document import Document
+from common.models.transaction import Transaction, TransactionType
+from common.exceptions import DocumentNotFoundException, AccessDeniedException, UserNotExistsException
+from common.models.user import User
 from services.transaction_service import TransactionService
 from services.index_service import IndexService
 
-from infrastructure.worker_task import embed_document
+from infrastructure.worker_client import worker_app, TASK_EMBED_DOCUMENT_NAME
 class DocumentService:
 
     def __init__(
@@ -60,7 +59,7 @@ class DocumentService:
 
         # индексируем
         self._session.commit()
-        embed_document.delay(str(user_id), str(doc.id))        
+        worker_app.send_task(TASK_EMBED_DOCUMENT_NAME, args=[str(user_id), str(doc.id)])
 
         return doc
 
@@ -109,27 +108,3 @@ class DocumentService:
         self._session.flush()
 
         self._index.remove_document(user_id, document_id)
-
-    def set_index_status(
-        self,
-        document_id: UUID,
-        status: DocumentIndexStatus,
-        error: str | None = None,
-    ) -> None:
-        """
-        Проставить статус документу
-        """
-        doc = self._session.get(Document, str(document_id))
-        if doc is None:
-            raise DocumentNotFoundException()
-
-        doc.index_status = status.value
-        doc.index_error = error
-
-        if status == DocumentIndexStatus.INDEXED:
-            doc.indexed_at = datetime.now(timezone.utc)
-        else:
-            doc.indexed_at = None
-
-        self._session.add(doc)
-        self._session.flush()

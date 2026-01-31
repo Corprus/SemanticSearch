@@ -6,5 +6,3 @@ psycopg[binary]>=3.1
 pydantic-settings>=2.0
 python-multipart
 celery==5.6.2
-sentence-transformers
-torch

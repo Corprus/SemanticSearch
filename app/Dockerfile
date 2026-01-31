@@ -11,6 +11,6 @@ RUN pip install --no-cache-dir -r /app/requirements.txt
 
 EXPOSE 8000
 
-CMD ["python", "api.py"]
+CMD ["python", "app/api.py"]
 
 #CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

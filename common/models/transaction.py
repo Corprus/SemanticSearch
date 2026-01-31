@@ -10,7 +10,7 @@ from sqlalchemy import DateTime, Numeric, String, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from database.database import Base
+from common.database.database import Base
 
 class TransactionType(str, Enum):
     DOCUMENT_UPLOAD = "document_upload"

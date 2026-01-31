@@ -1,9 +1,15 @@
 import os
-import time, socket
+import time
+import socket
+import uvicorn
+import logging
+
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from database.database import init_db, get_engine, Base
+
+from common.database.database import init_db, get_engine, Base
+from common.database.config import get_settings
 
 from routes.users import router as users_router
 from routes.auth import router as auth_router
@@ -12,7 +18,7 @@ from routes.documents import router as documents_router
 from routes.search import router as search_router
 from routes.health import router as health_router
 
-from services.exceptions import (
+from common.exceptions import (
     ServiceException,
     InvalidCredentialsException,
     UserAlreadyExistsException,
@@ -23,12 +29,8 @@ from services.exceptions import (
     QueryNotFoundException
 )
 
-
 from infrastructure.initializer import init
 
-from database.config import get_settings
-import uvicorn
-import logging
 
 logger = logging.getLogger(__name__)
 settings = get_settings()

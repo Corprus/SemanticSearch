@@ -1,5 +1,5 @@
 from sentence_transformers import SentenceTransformer
-from domain.interfaces.embedding_model import EmbeddingModel
+from common.domain.interfaces.embedding_model import EmbeddingModel
 
 class SentenceTransformerEmbeddingModel(EmbeddingModel):
     """
@@ -8,14 +8,15 @@ class SentenceTransformerEmbeddingModel(EmbeddingModel):
 
     def __init__(
         self,
-        model_name: str = "sentence-transformers/all-MiniLM-L6-v2",
         normalize: bool = True,
     ):
-        self.name = model_name
         self._normalize = normalize
-        self._model = SentenceTransformer(model_name)
+        self._model = SentenceTransformer(self.name)
         
-
+    @property
+    def name(self) -> str:
+        return "sentence-transformers/all-MiniLM-L6-v2"      
+    
     def embed_batch(self, texts: list[str]) -> list[list[float]]:
         """
         Посчитать эмбеддинги для списка текстов.

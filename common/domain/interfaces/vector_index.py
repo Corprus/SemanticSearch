@@ -9,7 +9,7 @@ class VectorIndex(ABC):
     В реализациях уже надо писать в базу или в память, 
     Опять же, эмбеддинги могут быть разные в зависимости от модели, однако поиск по ним должен осуществляться через единый интерфейс
     """
-    def upsert(self, user_id: UUID, doc_id: UUID, vector: list[float]) -> None: 
+    def upsert(self, user_id: UUID, doc_id: UUID, vector: list[float], model_name: str) -> None: 
         """
         Добавить/обновить эмбеддинги к документу
         """
