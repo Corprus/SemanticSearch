@@ -68,15 +68,16 @@ class SearchService:
         )
         self._session.add(query)
         self._session.flush()
+        query_id = query.id
 
         # 2) списываем кредит
-        transaction_id = self._transaction_service.withdraw_credit(user_id, self._search_cost, reason=TransactionType.SEARCH_QUERY, reference_id=UUID(query.id))
+        transaction_id = self._transaction_service.withdraw_credit(user_id, self._search_cost, reason=TransactionType.SEARCH_QUERY, reference_id=UUID(query_id))
 
         # 3) обновляем транзакцию: reason + reference_id = query.id
         transaction = self._session.get(Transaction, str(transaction_id))
         if transaction is not None:
             transaction.reason = TransactionType.SEARCH_QUERY.value
-            transaction.reference_id = query.id
+            transaction.reference_id = query_id
             self._session.add(transaction)
             self._session.flush()
 
@@ -84,12 +85,11 @@ class SearchService:
         query.transaction_id = str(transaction_id)
         self._session.add(query)
         self._session.flush()
-        
         self._session.commit()
 
-        worker_app.send_task(TASK_PROCESS_SEARCH_QUERY_NAME, args=[str(query.id)])
+        worker_app.send_task(TASK_PROCESS_SEARCH_QUERY_NAME, args=[str(query_id)])
 
-        return UUID(query.id)
+        return UUID(query_id)
     
     def search_documents(self, query_id : UUID) -> list[Document]:
         """Вернуть документы по поиску"""
@@ -111,10 +111,10 @@ class SearchService:
 
     def get_query_results(
         self,
-        user_id: UUID,
         query_id: UUID,
+        user_id: UUID | None = None,
         limit: int = 50,
-        offset: int = 0,
+        offset: int = 0
     ) -> QueryResults:
         """
         Получить Query + результаты из БД.
@@ -124,7 +124,7 @@ class SearchService:
         if q is None:
             raise QueryNotFoundException()
 
-        if q.user_id != str(user_id):
+        if user_id is not None and str(user_id) != q.user_id:
             raise AccessDeniedException()
 
 

@@ -45,21 +45,23 @@ class DocumentService:
         )
         self._session.add(doc)
         self._session.flush()
+        doc_id = doc.id
 
-
-        transaction_id = self._transaction_service.withdraw_credit(user_id, self._upload_cost, reason=TransactionType.DOCUMENT_UPLOAD, reference_id=UUID(doc.id))
+        transaction_id = self._transaction_service.withdraw_credit(user_id, self._upload_cost, reason=TransactionType.DOCUMENT_UPLOAD, reference_id=UUID(doc_id))
 
         # проставляем транзакции причину и ссылку на документ
         tx = self._session.get(Transaction, str(transaction_id))
         if tx is not None:
             tx.reason = TransactionType.DOCUMENT_UPLOAD.value
-            tx.reference_id = doc.id
+            tx.reference_id = doc_id
             self._session.add(tx)
             self._session.flush()
 
+        self._session.expunge(doc)
+
         # индексируем
         self._session.commit()
-        worker_app.send_task(TASK_EMBED_DOCUMENT_NAME, args=[str(user_id), str(doc.id)])
+        worker_app.send_task(TASK_EMBED_DOCUMENT_NAME, args=[str(user_id), str(doc_id)])
 
         return doc
 

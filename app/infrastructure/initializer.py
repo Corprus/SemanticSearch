@@ -95,7 +95,7 @@ def init(settings: AppSettings, drop_all: bool = True) -> None:
 
             deadline = time.time() + 10.0  # 10 секунд на демо
             while True:
-                query_results = search_service.get_query_results(UUID(user.id), query_id, limit=50, offset=0)
+                query_results = search_service.get_query_results(query_id, UUID(user.id), limit=50, offset=0)
                 status = query_results.query.query_status
 
                 if status == QueryJobStatus.DONE.value:

@@ -13,13 +13,14 @@ from services.user_service import UserService
 from dataclasses import dataclass
 from common.models.user import UserRole
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
 
 @dataclass(frozen=True)
 class CurrentUser:
     id: UUID
     role: UserRole
+    login: str    
 
 async def authenticate(
     token: str = Depends(oauth2_scheme),
@@ -41,7 +42,6 @@ async def authenticate(
             detail="Invalid or expired token",
         )
 
-    # Рекомендую оставить: токен валиден, но пользователь мог быть удалён
     user = user_service.find_user_by_id(user_id)
     if user is None:
         raise HTTPException(
@@ -50,6 +50,7 @@ async def authenticate(
         )
     
     return CurrentUser(
-    id=UUID(user.id),
-    role=UserRole(user.role),
+        id=UUID(user.id),
+        role=UserRole(user.role),
+        login = user.login
     )

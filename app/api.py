@@ -38,6 +38,7 @@ settings = get_settings()
 HOST = os.getenv("APP_HOST", "0.0.0.0")
 PORT = int(os.getenv("APP_PORT", "8000"))
 APP_NAME = os.getenv("APP_NAME", "Semantic Search")
+from infrastructure.http_prefix_middleware import ForwardedPrefixMiddleware
 
 def create_application() -> FastAPI:
     """
@@ -48,8 +49,8 @@ def create_application() -> FastAPI:
     """
     
     APP_NAME = os.getenv("APP_NAME", "Semantic Search")
-    app = FastAPI(title=APP_NAME)
-
+    app = FastAPI(title=APP_NAME, root_path_in_servers=True)
+    app.add_middleware(ForwardedPrefixMiddleware)
     # Configure CORS
     app.add_middleware(
         CORSMiddleware,
@@ -105,7 +106,7 @@ def on_startup():
         print(settings.POSTGRES_DB)
         print(settings.POSTGRES_USER)
         wait_amqp()
-        init(settings, drop_all=True)
+        init(settings, drop_all=False)
         logger.info("Application startup completed successfully")
     except Exception as e:
         logger.error(f"Startup failed: {str(e)}")
@@ -123,6 +124,7 @@ if __name__ == '__main__':
         host=HOST,
         port=PORT,
         reload=True,
+#        root_path="/api",
         log_level="info"
     )
 

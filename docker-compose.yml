@@ -50,10 +50,10 @@ services:
         condition: service_healthy
 
     expose:
-      - "8000"
+      - ${APP_PORT}
     # Раскомментить для прямого дебага без nginx
-    #    ports:
-    #      - "8000:8000"
+    #ports:
+    #  - "8000:8000"
     #Тут healthcheck для самого приложения, для этого сделал health.py
     healthcheck:
       test: [ "CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()\"" ]
@@ -81,6 +81,8 @@ services:
 
   web-proxy:
     image: nginx:1.27-alpine
+    environment:
+      - API_BASE_URL=http://web-proxy/api
     depends_on:
       app:
         condition: service_healthy
@@ -89,6 +91,23 @@ services:
       - "443:443"
     volumes:
       - ./web-proxy/conf.d:/etc/nginx/conf.d:ro
+
+  ui:
+    build:
+      context: ./ui
+    working_dir: /ui
+    expose:
+      - "8501"
+    environment:
+      - STREAMLIT_SERVER_RUNONSAVE=true
+    command: streamlit run app.py --server.address=0.0.0.0 --server.port=8501 --server.runOnSave=true --server.fileWatcherType=poll
+    #ports:
+    #  - "8501:8501"
+    depends_on:
+      - app
+    restart: on-failure
+    volumes:
+      - ./ui:/ui
 
 volumes:
   postgres_volume:
