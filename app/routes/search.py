@@ -4,10 +4,13 @@ from __future__ import annotations
 from uuid import UUID
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
+from datetime import datetime
 
 from services.search_service import SearchService
 from infrastructure.deps import get_search_service
-from datetime import datetime
+
+from infrastructure.auth import authenticate, CurrentUser
+from services import authorization
 router = APIRouter()
 
 
@@ -33,14 +36,14 @@ class SearchResultResponse(BaseModel):
 
 
 @router.post("", response_model=SearchIdResponse, summary="Отправить запрос на выполнение поиска среди документов пользователя")
-def search(req: SearchRequest, search_service: SearchService = Depends(get_search_service)):
-
-    query_id = search_service.create_query_job(req.user_id, req.query_text, req.top_k)    
+def search(req: SearchRequest, search_service: SearchService = Depends(get_search_service), current_user: CurrentUser = Depends(authenticate)):
+    user_id = authorization.resolve_target_user(current_user, req.user_id)
+    query_id = search_service.create_query_job(user_id, req.query_text, req.top_k)    
     return SearchIdResponse(query_id=query_id)
 
 @router.get("/{query_id}", response_model=SearchResultResponse, summary="Получить результаты выполнения запроса")
-def search_results(user_id: UUID, query_id: UUID, search_service: SearchService = Depends(get_search_service)):
-
+def search_results(user_id: UUID, query_id: UUID, search_service: SearchService = Depends(get_search_service), current_user: CurrentUser = Depends(authenticate)):
+    user_id = authorization.resolve_target_user(current_user, user_id)
     result = search_service.get_query_results(user_id, user_id)
     return SearchResultResponse(
         query_id=result.query_id,
@@ -76,7 +79,9 @@ class SearchQueryResponse(BaseModel):
 def get_search_query(
     user_id: UUID,
     search_service: SearchService = Depends(get_search_service),
+    current_user: CurrentUser = Depends(authenticate)
 ):
+    user_id = authorization.resolve_target_user(current_user, user_id)
     return [
         SearchQueryResponse(
             id=UUID(item.id), 
@@ -98,9 +103,10 @@ def get_search_history(
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     search_svc: SearchService = Depends(get_search_service),
+    current_user: CurrentUser = Depends(authenticate)
 ):
     history = search_svc.get_history(user_id=user_id, limit=limit, offset=offset)
-
+    user_id = authorization.resolve_target_user(current_user, user_id)
     return [
         SearchHistoryResponse(
             query = SearchQueryResponse(

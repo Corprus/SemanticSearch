@@ -5,11 +5,16 @@ from decimal import Decimal
 from uuid import UUID
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
-
-from services.transaction_service import TransactionService
-from infrastructure.deps import get_transaction_service
-from common.models.transaction import TransactionType
 from datetime import datetime
+
+from infrastructure.deps import get_transaction_service
+from infrastructure.auth import authenticate, CurrentUser
+
+from services import authorization
+from services.transaction_service import TransactionService
+
+from common.models.transaction import TransactionType
+
 
 router = APIRouter()
 
@@ -24,8 +29,9 @@ class TransactionIdResponse(BaseModel):
 
 
 @router.post("/credit", response_model=TransactionIdResponse, summary="Добавить деньги пользователю")
-def add_credit(req: AddCreditRequest, tx: TransactionService = Depends(get_transaction_service)):
-    tx_id = tx.add_credit(req.user_id, req.amount)
+def add_credit(req: AddCreditRequest, tx: TransactionService = Depends(get_transaction_service), current_user: CurrentUser = Depends(authenticate)):
+    user_id = authorization.resolve_target_user(current_user, req.user_id)
+    tx_id = tx.add_credit(user_id, req.amount)
     return TransactionIdResponse(transaction_id=tx_id)
 
 
@@ -34,8 +40,9 @@ class WithdrawRequest(BaseModel):
     amount: Decimal = Field(gt=0)
     
 @router.post("/debit", response_model=TransactionIdResponse, summary="Снять деньгши с пользователя")
-def withdraw(req: WithdrawRequest, transaction_service: TransactionService = Depends(get_transaction_service)):
-    transaction_id = transaction_service.withdraw_credit(req.user_id, req.amount, TransactionType.CREDIT_WITHDRAW)
+def withdraw(req: WithdrawRequest, transaction_service: TransactionService = Depends(get_transaction_service), current_user: CurrentUser = Depends(authenticate)):
+    user_id = authorization.resolve_target_user(current_user, req.user_id)
+    transaction_id = transaction_service.withdraw_credit(user_id, req.amount, TransactionType.CREDIT_WITHDRAW)
     return TransactionIdResponse(transaction_id=transaction_id)
 
 
@@ -49,8 +56,10 @@ class TransactionResponse(BaseModel):
 @router.get("/{user_id}", response_model=list[TransactionResponse], summary="Получить историю транзакций пользователя")
 def list_transactions(
     user_id: UUID,
-    tx: TransactionService = Depends(get_transaction_service)):
-    items = tx.get_transaction_history(user_id)  # <-- подставь реальное имя метода
+    tx: TransactionService = Depends(get_transaction_service),
+    current_user: CurrentUser = Depends(authenticate)):
+    user_id = authorization.resolve_target_user(current_user, user_id)
+    items = tx.get_transaction_history(user_id)
     return [
         TransactionResponse(
             id=i.id if isinstance(i.id, UUID) else UUID(str(i.id)),

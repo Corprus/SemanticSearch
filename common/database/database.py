@@ -7,7 +7,7 @@ from typing import Iterator
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker, Session
 
-from common.database.config import DatabaseSettings
+from common.config import AppSettings
 
 class Base(DeclarativeBase):
     pass
@@ -15,7 +15,7 @@ class Base(DeclarativeBase):
 _engine = None
 _SessionLocal: sessionmaker[Session] | None = None
 
-def init_db(_settings: DatabaseSettings) -> None:
+def init_db(_settings: AppSettings) -> None:
     """
     Инициализация engine + Session factory.
     Вызывать один раз на старте.

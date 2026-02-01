@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from common.database.database import init_db, get_engine, Base
-from common.database.config import get_settings
+from common.config import get_settings
 
 from routes.users import router as users_router
 from routes.auth import router as auth_router

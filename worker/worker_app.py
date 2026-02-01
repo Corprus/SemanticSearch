@@ -3,7 +3,7 @@ from celery import Celery
 import os
 from urllib.parse import quote
 
-from common.database.config import get_settings
+from common.config import get_settings
 from common.database.database import init_db
 
 import logging

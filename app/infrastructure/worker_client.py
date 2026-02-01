@@ -5,7 +5,7 @@ import logging
 from urllib.parse import quote
 from celery import Celery
 
-from common.database.config import get_settings
+from common.config import get_settings
 from common.database.database import init_db
 
 
