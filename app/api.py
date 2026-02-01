@@ -1,8 +1,15 @@
 import os
+import time
+import socket
+import uvicorn
+import logging
+
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from database.database import init_db, get_engine, Base
+
+from common.database.database import init_db, get_engine, Base
+from common.database.config import get_settings
 
 from routes.users import router as users_router
 from routes.auth import router as auth_router
@@ -11,7 +18,7 @@ from routes.documents import router as documents_router
 from routes.search import router as search_router
 from routes.health import router as health_router
 
-from services.exceptions import (
+from common.exceptions import (
     ServiceException,
     InvalidCredentialsException,
     UserAlreadyExistsException,
@@ -19,14 +26,11 @@ from services.exceptions import (
     InsufficientBalanceException,
     DocumentNotFoundException,
     AccessDeniedException,
+    QueryNotFoundException
 )
-
 
 from infrastructure.initializer import init
 
-from database.config import get_settings
-import uvicorn
-import logging
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -67,6 +71,22 @@ def create_application() -> FastAPI:
 
     return app
 
+def wait_amqp():
+    print("== Checking and waiting AMQP ==")
+    host = os.getenv("RABBITMQ_HOST", "rabbitmq")
+    port = int(os.getenv("RABBITMQ_PORT", "5672"))
+    deadline = time.time() + 20  # 20 секунд
+    while time.time() < deadline:
+        try:
+            s = socket.socket()
+            s.settimeout(2)
+            s.connect((host, port))
+            s.close()   
+            return
+        except OSError:
+            time.sleep(2)
+    print("== AMQP UP ==")         
+    raise RuntimeError(f"RabbitMQ AMQP not reachable at {host}:{port}")
 app = create_application()
 
 @app.on_event("startup") 
@@ -84,7 +104,7 @@ def on_startup():
         print(settings.POSTGRES_HOST)
         print(settings.POSTGRES_DB)
         print(settings.POSTGRES_USER)
-    
+        wait_amqp()
         init(settings, drop_all=True)
         logger.info("Application startup completed successfully")
     except Exception as e:
@@ -123,6 +143,10 @@ async def service_exception_handler(_, exc: ServiceException):
     elif isinstance(exc, DocumentNotFoundException):
         code = status.HTTP_404_NOT_FOUND
         detail = "Document not found"
+
+    elif isinstance(exc, QueryNotFoundException):
+        code = status.HTTP_404_NOT_FOUND
+        detail = "Query not found"
 
     elif isinstance(exc, AccessDeniedException):
         code = status.HTTP_403_FORBIDDEN

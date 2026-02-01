@@ -23,17 +23,30 @@ class SearchItem(BaseModel):
     rank: int
 
 
-class SearchResponse(BaseModel):
+class SearchIdResponse(BaseModel):
     query_id: UUID
+
+class SearchResultResponse(BaseModel):
+    query_id: UUID
+    query_status :str
     items: list[SearchItem]
 
 
-@router.post("", response_model=SearchResponse, summary="Выполнить поиск среди документов пользователя")
+@router.post("", response_model=SearchIdResponse, summary="Отправить запрос на выполнение поиска среди документов пользователя")
 def search(req: SearchRequest, search_service: SearchService = Depends(get_search_service)):
-    results = search_service.search(req.user_id, req.query_text, req.top_k)
-    return SearchResponse(
-        query_id=results.query_id,
-        items=[SearchItem(document_id=i.document_id, score=i.score, rank=i.rank) for i in results.items])
+
+    query_id = search_service.create_query_job(req.user_id, req.query_text, req.top_k)    
+    return SearchIdResponse(query_id=query_id)
+
+@router.get("/{query_id}", response_model=SearchResultResponse, summary="Получить результаты выполнения запроса")
+def search_results(user_id: UUID, query_id: UUID, search_service: SearchService = Depends(get_search_service)):
+
+    result = search_service.get_query_results(user_id, user_id)
+    return SearchResultResponse(
+        query_id=result.query_id,
+        query_status=result.query.query_status,
+        items=[SearchItem(document_id=i.document_id, score=i.score, rank=i.rank) for i in result.items])
+
 
 class SearchResultItemResponse(BaseModel):
     document_id: UUID

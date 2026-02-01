@@ -7,7 +7,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
-from models.user import UserRole
+from common.models.user import UserRole
 from services.user_service import UserService
 from services.transaction_service import TransactionService
 from infrastructure.deps import get_user_service, get_transaction_service

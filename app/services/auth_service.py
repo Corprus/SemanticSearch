@@ -1,5 +1,5 @@
 from domain.interfaces.password_hasher import PasswordHasher
-from services.exceptions import InvalidCredentialsException
+from common.exceptions import InvalidCredentialsException
 from services.user_service import UserService
 from uuid import UUID
 class AuthService:

@@ -1,19 +1,20 @@
 # app/services/search_service.py
 from decimal import Decimal
 from uuid import UUID
-from typing import Iterable, Sequence
+from typing import Sequence
 
 from sqlalchemy import select, delete
 from sqlalchemy.orm import Session
 
-from models.document import Document
-from models.query import Query
-from models.query_result_item import QueryResultItem
-from models.transaction import Transaction, TransactionType
+from common.models.document import Document
+from common.models.query import Query, QueryJobStatus
+from common.models.query_result_item import QueryResultItem
+from common.models.user import User
+from common.models.transaction import Transaction, TransactionType
+
 from services.transaction_service import TransactionService
-from services.index_service import IndexService
-from services.exceptions import UserNotExistsException
-from models.user import User
+from common.exceptions import UserNotExistsException, AccessDeniedException, QueryNotFoundException
+from infrastructure.worker_client import worker_app, TASK_PROCESS_SEARCH_QUERY_NAME
 
 from dataclasses import dataclass
 @dataclass(frozen=True)
@@ -38,20 +39,18 @@ class SearchService:
         self,
         session: Session,
         transaction_service: TransactionService,
-        index_service: IndexService,
         search_cost: Decimal = Decimal("1.00"),
     ):
         self._session = session
         self._transaction_service = transaction_service
-        self._index_service = index_service
         self._search_cost = search_cost
 
-    def search(self, user_id: UUID, query_text: str, top_k: int) -> QueryResults:
+    def create_query_job(self, user_id: UUID, query_text: str, top_k: int) -> UUID:
         """
-        Вернуть top_k совпадений
-        Данный метод уже должен проверить кредит, списать его, если достаточно - посчитать эмбеддинги для текста запроса, отправить запрос на поиск похожего, сгенерировать ответ...
-        В общем, самый важный метод сервиса, ради которого всё и затевается
-        """
+        Создать задачу и поставить в очередь на выполнение. Вызывается из API
+        Данный метод уже должен проверить кредит, списать его, если достаточно - создать задачу.
+        """  
+
         if top_k <= 0:
             raise ValueError("top_k must be > 0")
 
@@ -65,6 +64,7 @@ class SearchService:
             query_text=query_text,
             cost=self._search_cost,
             transaction_id=None,
+            top_k=top_k
         )
         self._session.add(query)
         self._session.flush()
@@ -73,73 +73,24 @@ class SearchService:
         transaction_id = self._transaction_service.withdraw_credit(user_id, self._search_cost, reason=TransactionType.SEARCH_QUERY, reference_id=UUID(query.id))
 
         # 3) обновляем транзакцию: reason + reference_id = query.id
-        tx = self._session.get(Transaction, str(transaction_id))
-        if tx is not None:
-            tx.reason = TransactionType.SEARCH_QUERY.value
-            tx.reference_id = query.id
-            self._session.add(tx)
+        transaction = self._session.get(Transaction, str(transaction_id))
+        if transaction is not None:
+            transaction.reason = TransactionType.SEARCH_QUERY.value
+            transaction.reference_id = query.id
+            self._session.add(transaction)
             self._session.flush()
 
         # 4) связываем query с transaction
         query.transaction_id = str(transaction_id)
         self._session.add(query)
         self._session.flush()
+        
+        self._session.commit()
 
-        # 5) поиск через индекс (VectorIndex внутри IndexService)
-        hits = self._index_service.search(user_id, query_text, top_k)  # [(doc_id: UUID, score: float)]
+        worker_app.send_task(TASK_PROCESS_SEARCH_QUERY_NAME, args=[str(query.id)])
 
-        docs_by_id: dict[str, Document] = {}
-        ordered_docs: list[tuple[Document, float]] = []
-
-        if hits:
-            hit_ids = [str(doc_id) for (doc_id, _score) in hits]
-
-            # Подтягиваем документы одним запросом
-            docs = list(
-                self._session.execute(
-                    select(Document).where(Document.id.in_(hit_ids))
-                ).scalars().all()
-            )
-            docs_by_id = {d.id: d for d in docs}
-
-            # Восстанавливаем порядок как в hits + фильтруем те, которых нет/не принадлежат пользователю
-            for (doc_id, score) in hits:
-                d = docs_by_id.get(str(doc_id))
-                if d is None:
-                    continue
-                if d.owner_id != str(user_id):
-                    continue
-                ordered_docs.append((d, float(score)))
-
-# fallback:  демо-скоринг
-#        if not ordered_docs:
-#            docs = list(
-#                self._session.execute(
-#                    select(Document).where(Document.owner_id == str(user_id))
-#                ).scalars().all()
-#            )
-#            scored = self.score_documents(query_text, docs)
-#            scored.sort(key=lambda x: x[1], reverse=True)
-#            ordered_docs = [(doc, float(score)) for (doc, score) in scored[:top_k]]
-
-        # 6) пишем QueryResultItem в БД (для истории история)
-        for rank, (doc, score) in enumerate(ordered_docs, start=1):
-            item = QueryResultItem(
-                query_id=query.id,
-                document_id=doc.id,
-                score=score,
-                rank=rank,
-            )
-            self._session.add(item)
-
-        self._session.flush()
-
-        dto_items = tuple(
-            QueryResultItemDTO(document_id=UUID(doc.id), document_title=doc.title, score=float(score), rank=rank)
-            for rank, (doc, score) in enumerate(ordered_docs, start=1)
-        )
-        return QueryResults(query_id=UUID(query.id), items=dto_items, query=query)
-
+        return UUID(query.id)
+    
     def search_documents(self, query_id : UUID) -> list[Document]:
         """Вернуть документы по поиску"""
         query = (
@@ -158,6 +109,49 @@ class SearchService:
         )
         return self._session.execute(query).scalars().all()
 
+    def get_query_results(
+        self,
+        user_id: UUID,
+        query_id: UUID,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> QueryResults:
+        """
+        Получить Query + результаты из БД.
+        Если query ещё не обработан воркером — items будет пустой tuple.
+        """
+        q = self._session.get(Query, str(query_id))
+        if q is None:
+            raise QueryNotFoundException()
+
+        if q.user_id != str(user_id):
+            raise AccessDeniedException()
+
+
+        self._session.refresh(q)
+
+        # Читаем результаты (если их ещё нет — вернётся пусто)
+        items_stmt = (
+            select(QueryResultItem, Document.title.label("document_title"))
+            .join(Document, Document.id == QueryResultItem.document_id)
+            .where(QueryResultItem.query_id == q.id)
+            .order_by(QueryResultItem.rank.asc())
+            .limit(limit)
+            .offset(offset)
+        )
+        rows = list(self._session.execute(items_stmt).all())
+
+        dto_items = tuple(
+            QueryResultItemDTO(
+                document_id=UUID(row[0].document_id),
+                document_title=row[1],
+                score=float(row[0].score),
+                rank=int(row[0].rank)
+            )
+            for row in rows
+        )
+
+        return QueryResults(query_id=UUID(q.id), items=dto_items, query=q)
 
     def get_history(self, user_id: UUID, limit: int = 50, offset: int = 0) -> list[QueryResults]:
         """Вернуть историю запросов пользователя."""
@@ -204,19 +198,3 @@ class SearchService:
         self._session.execute(delete(Query).where(Query.id.in_(q_ids)))
         self._session.flush()
 
-    def score_documents(self, query_text: str, docs: Iterable[Document]) -> list[tuple[Document, float]]:
-        """
-        Простой демо-скоринг: доля совпавших токенов по title+content.
-        """
-        q_tokens = {t for t in query_text.lower().split() if t.strip()}
-        if not q_tokens:
-            return [(d, 0.0) for d in docs]
-
-        scored: list[tuple[Document, float]] = []
-        for d in docs:
-            text = f"{d.title} {d.content}".lower()
-            d_tokens = set(text.split())
-            inter = len(q_tokens & d_tokens)
-            score = inter / max(len(q_tokens), 1)
-            scored.append((d, float(score)))
-        return scored

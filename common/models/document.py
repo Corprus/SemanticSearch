@@ -1,13 +1,23 @@
 from __future__ import annotations
+from typing import TYPE_CHECKING
 
 from datetime import datetime, timezone
 from uuid import uuid4
+from enum import Enum
 
 from sqlalchemy import DateTime, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from database.database import Base
+from common.database.database import Base
+
+if TYPE_CHECKING:
+    from models.query_result_item import QueryResultItem
+
+class DocumentIndexStatus(str, Enum):
+    PENDING = "pending"
+    INDEXED = "indexed"
+    FAILED = "failed"
 
 class Document(Base):
     """
@@ -26,21 +36,32 @@ class Document(Base):
     title: Mapped[str] = mapped_column(String(256), nullable=False, default="Untitled")
     content: Mapped[str] = mapped_column(Text, nullable=False)
 
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
         default=lambda: datetime.now(timezone.utc),
     )
 
-    owner = relationship("User")
-    query_results: Mapped[list["QueryResultItem"]] = relationship(
-        back_populates="document",
-        cascade="all, delete-orphan",
+    indexed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True
     )
+
+    index_status: Mapped[str] = mapped_column(
+        String(32),
+        nullable=False,
+        default=DocumentIndexStatus.PENDING.value,
+    )
+
+    index_error: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+
+    owner = relationship("User")
 
     def __repr__(self) -> str:
         return (
             f"Document(id={self.id}, "
             f"title={self.title}. "
             f"ownerid={self.owner_id}, created={self.created_at})"
+            f"status={self.index_status}"
         )

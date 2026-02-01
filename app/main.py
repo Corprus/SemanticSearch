@@ -6,6 +6,8 @@ from health import router as health_router
 from database.config import get_settings
 from infrastructure.initializer import init
 
+import os, time, socket
+
 app = FastAPI(title="Semantic Search Service")
 
 app.include_router(health_router)
@@ -13,6 +15,22 @@ app.include_router(health_router)
 HOST = os.getenv("APP_HOST", "0.0.0.0")
 PORT = int(os.getenv("APP_PORT", "8000"))
 
+def wait_amqp():
+    print("== Checking and waiting AMQP ==")
+    host = os.getenv("RABBITMQ_HOST", "rabbitmq")
+    port = int(os.getenv("RABBITMQ_PORT", "5672"))
+    deadline = time.time() + 20  # 20 секунд
+    while time.time() < deadline:
+        try:
+            s = socket.socket()
+            s.settimeout(2)
+            s.connect((host, port))
+            s.close()   
+            return
+        except OSError:
+            time.sleep(2)
+    print("== AMQP UP ==")         
+    raise RuntimeError(f"RabbitMQ AMQP not reachable at {host}:{port}")
 
 # Для uvicorn запускается командой ниже через docker (см. requirements)
 if __name__ == "__main__":
@@ -25,5 +43,5 @@ if __name__ == "__main__":
     print(settings.POSTGRES_HOST)
     print(settings.POSTGRES_DB)
     print(settings.POSTGRES_USER)
-    
+    wait_amqp()
     init(settings, drop_all=True)

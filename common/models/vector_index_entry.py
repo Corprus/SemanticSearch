@@ -7,8 +7,8 @@ from sqlalchemy import DateTime, ForeignKey, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from database.database import Base
-from models.mixins import CrudMixin
+from common.database.database import Base
+from common.models.mixins import CrudMixin
 
 
 class VectorIndexEntry(Base, CrudMixin):

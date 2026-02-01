@@ -7,7 +7,7 @@ from typing import Iterator
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker, Session
 
-from database.config import DatabaseSettings
+from common.database.config import DatabaseSettings
 
 class Base(DeclarativeBase):
     pass

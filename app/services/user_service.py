@@ -3,9 +3,9 @@ from typing import Optional, Sequence
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from models.user import User, UserRole
+from common.models.user import User, UserRole
 from domain.interfaces.password_hasher import PasswordHasher
-from services.exceptions import UserAlreadyExistsException, UserNotExistsException
+from common.exceptions import UserAlreadyExistsException, UserNotExistsException
 
 
 class UserService:

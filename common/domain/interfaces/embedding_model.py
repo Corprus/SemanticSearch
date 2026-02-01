@@ -6,6 +6,12 @@ class EmbeddingModel(ABC):
     ML модель, которая умеет считать эмбеддинги.
     """
 
+    @property
+    @abstractmethod
+    def name(self) -> str:
+        """Уникальное имя модели (используется в индексе, БД, логах)."""
+        raise NotImplementedError
+
     @abstractmethod
     def embed_batch(self, texts: list[str]) -> list[list[float]]:
         """Вернуть эмбеддинги для списка текстов в том же порядке."""

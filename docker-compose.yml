@@ -17,6 +17,10 @@ services:
     image: rabbitmq:3-management
     env_file:
       - ./.env
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+      RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_VHOST}
     ports:
       - "15672:15672"
       - "5672:5672"
@@ -30,19 +34,21 @@ services:
       retries: 20
 
   app:
-    build:
-      context: ./app
+    working_dir: /semantic-search
+    build: ./app
     env_file:
       - ./.env
     volumes:
-      - ./app:/app
+      - ./app:/semantic-search/app
+      - ./common:/semantic-search/common
     environment:
-      - PYTHONPATH=/app
+      - PYTHONPATH=/semantic-search
     depends_on:
       database:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+
     expose:
       - "8000"
     # Раскомментить для прямого дебага без nginx
@@ -55,6 +61,23 @@ services:
       timeout: 3s
       retries: 10
       start_period: 10s
+
+  worker:
+    build: ./worker
+    working_dir: /semantic-search
+    volumes:
+      - ./worker:/semantic-search/worker
+      - ./common:/semantic-search/common
+    environment:
+      - PYTHONPATH=/semantic-search
+    env_file:
+      - ./.env
+    command: celery -A worker.worker_app:worker_app worker --loglevel=INFO --concurrency=${WORKER_CONCURRENCY} --pool=prefork
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      database:
+        condition: service_healthy
 
   web-proxy:
     image: nginx:1.27-alpine

@@ -5,8 +5,11 @@ from uuid import UUID
 from sqlalchemy import select, delete
 from sqlalchemy.orm import Session
 
-from domain.interfaces.vector_index import VectorIndex
-from models.vector_index_entry import VectorIndexEntry
+from common.domain.interfaces.vector_index import VectorIndex
+from common.models.vector_index_entry import VectorIndexEntry
+import logging
+
+logger = logging.getLogger(__name__)
 
 class VectorIndexModel(VectorIndex):
     """
@@ -14,15 +17,13 @@ class VectorIndexModel(VectorIndex):
     Храним embedding как JSON список float.
     """
 
-    def __init__(self, session: Session, model_name: str = "default"):
+    def __init__(self, session: Session):
         self._session = session
-        self._model_name = model_name
 
-    def upsert(self, user_id: UUID, doc_id: UUID, vector: list[float]) -> None:
+    def upsert(self, user_id: UUID, doc_id: UUID, vector: list[float], model_name: str) -> None:
         stmt = select(VectorIndexEntry).where(
             VectorIndexEntry.user_id == str(user_id),
-            VectorIndexEntry.document_id == str(doc_id),
-            VectorIndexEntry.model_name == self._model_name,
+            VectorIndexEntry.document_id == str(doc_id)
         )
         entry = self._session.execute(stmt).scalars().first()
 
@@ -30,7 +31,7 @@ class VectorIndexModel(VectorIndex):
             entry = VectorIndexEntry(
                 user_id=str(user_id),
                 document_id=str(doc_id),
-                model_name=self._model_name,
+                model_name=model_name,
                 embedding=vector,
             )
             self._session.add(entry)
@@ -44,8 +45,7 @@ class VectorIndexModel(VectorIndex):
         self._session.execute(
             delete(VectorIndexEntry).where(
                 VectorIndexEntry.user_id == str(user_id),
-                VectorIndexEntry.document_id == str(doc_id),
-                VectorIndexEntry.model_name == self._model_name,
+                VectorIndexEntry.document_id == str(doc_id)
             )
         )
         self._session.flush()
@@ -57,8 +57,7 @@ class VectorIndexModel(VectorIndex):
             return []
 
         stmt = select(VectorIndexEntry).where(
-            VectorIndexEntry.user_id == str(user_id),
-            VectorIndexEntry.model_name == self._model_name,
+            VectorIndexEntry.user_id == str(user_id)
         )
         entries = list(self._session.execute(stmt).scalars().all())
 
@@ -71,8 +70,9 @@ class VectorIndexModel(VectorIndex):
             else:
                 score = float(np.dot(q, v) / denom)
 
-            scored.append((UUID(e.document_id), score))
-
+            scored.append((UUID(e.document_id), score))            
+        
         scored.sort(key=lambda x: x[1], reverse=True)
+        logger.info(f"Scored:{scored}")
         return scored[:top_k]
 

@@ -1,4 +1,4 @@
-# app/services/exceptions.py
+# app/exceptions.py
 
 class ServiceException(Exception):
     """Базовый класс для сервисных исключений"""
@@ -23,6 +23,8 @@ class InsufficientBalanceException(ServiceException):
 class DocumentNotFoundException(ServiceException):
     """Документ не найден"""
 
+class QueryNotFoundException(ServiceException):
+    """Документ не найден"""
 
 class AccessDeniedException(ServiceException):
     """Нет доступа"""

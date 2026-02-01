@@ -22,6 +22,7 @@ class DocumentResponse(BaseModel):
     owner_id: UUID
     title: str
     content: str
+    index_status: str
 
 
 @router.put("", response_model=DocumentResponse, summary="Добавить документ пользователя")
@@ -32,6 +33,7 @@ def add_document(req: AddDocumentRequest, docs: DocumentService = Depends(get_do
         owner_id=UUID(doc.owner_id),
         title=doc.title,
         content=doc.content,
+        index_status=doc.index_status
     )
 
 @router.post(
@@ -76,17 +78,19 @@ async def upload_document(
         owner_id=UUID(doc.owner_id),
         title=doc.title,
         content=doc.content,
+        index_status=doc.index_status
     )
 
 
 @router.get("/{document_id}", response_model=DocumentResponse, summary="Получить документ пользователя")
 def get_document(user_id: UUID, document_id: UUID, docs: DocumentService = Depends(get_document_service)):
-    doc = docs.get_document(user_id, document_id)
+    doc = docs.get_user_document(user_id, document_id)
     return DocumentResponse(
         id=UUID(doc.id),
         owner_id=UUID(doc.owner_id),
         title=doc.title,
         content=doc.content,
+        index_status=doc.index_status
     )
 
 
@@ -95,10 +99,11 @@ def list_documents(user_id: UUID, docs: DocumentService = Depends(get_document_s
     items = docs.list_documents(user_id)
     return [
         DocumentResponse(
-            id=UUID(d.id),
-            owner_id=UUID(d.owner_id),
-            title=d.title,
-            content=d.content,
+            id=UUID(doc.id),
+            owner_id=UUID(doc.owner_id),
+            title=doc.title,
+            content=doc.content,
+            index_status=doc.index_status
         )
-        for d in items
+        for doc in items
     ]

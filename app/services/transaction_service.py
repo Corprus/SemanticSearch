@@ -5,10 +5,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 
-from models.user import User
-from models.transaction import Transaction, TransactionType
-from models.account import Account
-from services.exceptions import UserNotExistsException, InsufficientBalanceException
+from common.models.user import User
+from common.models.transaction import Transaction, TransactionType
+from common.models.account import Account
+from common.exceptions import UserNotExistsException, InsufficientBalanceException
 
 class TransactionService:
     """
