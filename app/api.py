@@ -106,7 +106,7 @@ def on_startup():
         print(settings.POSTGRES_DB)
         print(settings.POSTGRES_USER)
         wait_amqp()
-        init(settings, drop_all=False)
+        init(settings, drop_all=True)
         logger.info("Application startup completed successfully")
     except Exception as e:
         logger.error(f"Startup failed: {str(e)}")
