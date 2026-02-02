@@ -16,7 +16,7 @@ class InvalidTokenError(Exception):
 class JwtConfig:
     secret_key: str
     algorithm: str = "HS256"
-    access_token_ttl_minutes: int = 30
+    access_token_ttl_minutes: int = 60 * 24
     issuer: Optional[str] = None
     audience: Optional[str] = None
 

@@ -35,12 +35,53 @@ class SearchResultResponse(BaseModel):
     query_status :str
     items: list[SearchItem]
 
+class SearchHistoryResponse(BaseModel):
+    query: SearchQueryResponse
+    items: list[SearchResultItemResponse]
+
 
 @router.post("", response_model=SearchIdResponse, summary="Отправить запрос на выполнение поиска среди документов пользователя")
 def search(req: SearchRequest, search_service: SearchService = Depends(get_search_service), current_user: CurrentUser = Depends(authenticate)):
     user_id = authorization.resolve_target_user(current_user, req.user_id)
     query_id = search_service.create_query_job(user_id, req.query_text, req.top_k)    
     return SearchIdResponse(query_id=query_id)
+
+@router.get(
+    "/history",
+    response_model=list[SearchHistoryResponse],
+    summary="Получить историю поиска пользователя",
+)
+def get_search_history(
+    user_id: UUID | None = Query(default=None),
+    limit: int = Query(default=50, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    search_service: SearchService = Depends(get_search_service),
+    current_user: CurrentUser = Depends(authenticate)
+):
+    user_id = authorization.resolve_target_user(current_user, user_id)
+    history = search_service.get_history(user_id=user_id, limit=limit, offset=offset)
+    return [
+        SearchHistoryResponse(
+            query = SearchQueryResponse(
+                id=UUID(item.query.id), 
+                user_id=UUID(item.query.user_id), 
+                transaction_id=UUID(item.query.transaction_id), 
+                query_text=item.query.query_text, 
+                timestamp=item.query.created_at, 
+                cost=str(item.query.cost)),
+            items=[
+                SearchResultItemResponse(
+                    document_id=i.document_id,
+                    document_title=i.document_title,
+                    score=i.score,
+                    rank=i.rank,
+                )
+                for i in item.items
+            ],
+        )
+        for item in history
+    ]
+
 
 @router.get("/{query_id}/results", response_model=SearchResultResponse, summary="Получить результаты выполнения запроса")
 def search_results(query_id: UUID, user_id: UUID | None = Query(default=None), search_service: SearchService = Depends(get_search_service), current_user: CurrentUser = Depends(authenticate)):
@@ -59,12 +100,6 @@ class SearchResultItemResponse(BaseModel):
     document_title: str
     score: float
     rank: int
-
-
-class SearchHistoryResponse(BaseModel):
-    query: SearchQueryResponse
-    items: list[SearchResultItemResponse]
-
 
 class SearchQueryResponse(BaseModel):
     id: UUID
@@ -93,41 +128,5 @@ def get_search_query(
             query_text=item.query_text, 
             timestamp=item.created_at, 
             cost=str(item.cost)) 
-        for item in search_service.get_query(user_id)] 
-    
+        for item in search_service.get_query(user_id)]    
 
-@router.get(
-    "/history",
-    response_model=list[SearchHistoryResponse],
-    summary="Получить историю поиска пользователя",
-)
-def get_search_history(
-    user_id: UUID | None = Query(default=None),
-    limit: int = Query(default=50, ge=1, le=100),
-    offset: int = Query(default=0, ge=0),
-    search_svc: SearchService = Depends(get_search_service),
-    current_user: CurrentUser = Depends(authenticate)
-):
-    user_id = authorization.resolve_target_user(current_user, user_id)
-    history = search_svc.get_history(user_id=user_id, limit=limit, offset=offset)
-    return [
-        SearchHistoryResponse(
-            query = SearchQueryResponse(
-                id=UUID(item.query.id), 
-                user_id=UUID(item.query.user_id), 
-                transaction_id=UUID(item.query.transaction_id), 
-                query_text=item.query.query_text, 
-                timestamp=item.query.created_at, 
-                cost=str(item.query.cost)),
-            items=[
-                SearchResultItemResponse(
-                    document_id=i.document_id,
-                    document_title=i.document_title,
-                    score=i.score,
-                    rank=i.rank,
-                )
-                for i in item.items
-            ],
-        )
-        for item in history
-    ]

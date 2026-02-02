@@ -163,6 +163,7 @@ class SearchService:
             .offset(offset)
         )
         queries = list(self._session.execute(itemsQuery).scalars().all())
+        print(f"History queries count={queries.count}")
 
         results: list[QueryResults] = []
         for q in queries:
