@@ -175,3 +175,60 @@ class ApiClient:
         if resp.status_code != 200:
             raise ApiError(f"Transactions failed: {resp.status_code} {resp.text}")
         return resp.json()
+    
+
+    # ---ADMIN FUNC
+
+    def get_user(self, user_id: UUID) -> dict:
+        resp = requests.get(
+            f"{self.base_url}/users/{user_id}",
+            headers=self._headers(),
+            timeout=30,
+        )
+        if resp.status_code != 200:
+            raise ApiError(f"Get user failed: {resp.status_code} {resp.text}")
+        return resp.json()
+
+    def get_user_balance(self, user_id: UUID) -> dict:
+        resp = requests.get(
+            f"{self.base_url}/users/{user_id}/balance",
+            headers=self._headers(),
+            timeout=30,
+        )
+        if resp.status_code != 200:
+            raise ApiError(f"Get user balance failed: {resp.status_code} {resp.text}")
+        return resp.json()
+
+    def credit_user(self, user_id: UUID, amount: Decimal) -> dict:
+        # ⚠️ важно: этот payload зависит от твоей схемы.
+        # Если /transactions/credit принимает user_id — ок. Если нет — 422, и нужно будет подправить бэк/контракт.
+        resp = requests.post(
+            f"{self.base_url}/transactions/credit",
+            json={"user_id": str(user_id), "amount": str(amount)},
+            headers=self._headers(),
+            timeout=30,
+        )
+        if not (200 <= resp.status_code < 300):
+            raise ApiError(f"Credit user failed: {resp.status_code} {resp.text}")
+        return resp.json()
+
+    def debit_user(self, user_id: UUID, amount: Decimal) -> dict:
+        resp = requests.post(
+            f"{self.base_url}/transactions/debit",
+            json={"user_id": str(user_id), "amount": str(amount)},
+            headers=self._headers(),
+            timeout=30,
+        )
+        if not (200 <= resp.status_code < 300):
+            raise ApiError(f"Debit user failed: {resp.status_code} {resp.text}")
+        return resp.json()
+    
+    def list_users(self) -> list[dict]:
+        resp = requests.get(
+            f"{self.base_url}/users",
+            headers=self._headers(),
+            timeout=30,
+        )
+        if resp.status_code != 200:
+            raise ApiError(f"List users failed: {resp.status_code} {resp.text}")
+        return resp.json()
