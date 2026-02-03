@@ -3,7 +3,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
 from typing import Optional
 
-class DatabaseSettings(BaseSettings):
+class AppSettings(BaseSettings):
     # Database settings
     POSTGRES_HOST: Optional[str] = None
     POSTGRES_PORT: Optional[int] = None
@@ -15,6 +15,11 @@ class DatabaseSettings(BaseSettings):
     APP_NAME: Optional[str] = None
     DEBUG: Optional[bool] = None
     API_VERSION: Optional[str] = None
+
+    # JWT settings
+    JWT_SECRET_KEY: str = "01234567890"
+    JWT_ALGORITHM: str = "HS256"
+    JWT_ACCESS_TOKEN_TTL_MINUTES: int = 30
     
     @property
     def DATABASE_URL_asyncpg(self):
@@ -37,7 +42,8 @@ class DatabaseSettings(BaseSettings):
             raise ValueError("Missing required database configuration")
 
 @lru_cache()
-def get_settings() -> DatabaseSettings:
-    settings = DatabaseSettings()
+def get_settings() -> AppSettings:
+    settings = AppSettings()
     settings.validate()
     return settings
+

@@ -5,23 +5,21 @@ import time
 
 from common.database.database import Base, init_db, get_engine, get_session
 from common.infrastructure.vector_index_model import VectorIndexModel
-from common.database.config import DatabaseSettings
+from common.config import AppSettings
+
+from common.models.user import UserRole
+from common.models.query import QueryJobStatus
+from common.models.document import DocumentIndexStatus
 
 from services.user_service import UserService
 from services.transaction_service import TransactionService
 from services.document_service import DocumentService
 from services.search_service import SearchService
 from services.index_service import IndexService
-from services.auth_service import AuthService
-
-
-from common.models.user import UserRole
-from common.models.query import QueryJobStatus
-from common.models.document import DocumentIndexStatus
 
 from infrastructure.md5_hasher import Md5PasswordHasher
 
-def init(settings: DatabaseSettings, drop_all: bool = True) -> None:
+def init(settings: AppSettings, drop_all: bool = True) -> None:
     init_db(settings)
     engine = get_engine()
 
@@ -40,7 +38,6 @@ def init(settings: DatabaseSettings, drop_all: bool = True) -> None:
         index_service = IndexService(session, vector_index)
         document_service = DocumentService(session, transaction_service, index_service)
         search_service = SearchService(session, transaction_service)
-        auth_service = AuthService(user_service, password_hasher)
 
         if drop_all:
             print("== DEMO START ==")
@@ -98,7 +95,7 @@ def init(settings: DatabaseSettings, drop_all: bool = True) -> None:
 
             deadline = time.time() + 10.0  # 10 секунд на демо
             while True:
-                query_results = search_service.get_query_results(UUID(user.id), query_id, limit=50, offset=0)
+                query_results = search_service.get_query_results(query_id, UUID(user.id), limit=50, offset=0)
                 status = query_results.query.query_status
 
                 if status == QueryJobStatus.DONE.value:

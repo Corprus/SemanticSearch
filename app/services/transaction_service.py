@@ -56,7 +56,6 @@ class TransactionService:
             return UUID(tx.id)
     
     def withdraw_credit(self, user_id: UUID, amount: Decimal, reason: TransactionType, reference_id: UUID | None = None) -> UUID:
-        """Потратить кредит (если достаточно)"""
         if amount <= 0:
             raise ValueError("amount must be > 0")
 
@@ -64,24 +63,27 @@ class TransactionService:
         if user is None:
             raise UserNotExistsException()
 
-        with self._get_transaction_context():
-            acc = self._get_or_create_account_locked(user_id)
+        # ВАЖНО: без begin/commit здесь
+        acc = self._get_or_create_account_locked(user_id)
 
-            if acc.balance < amount:
-                raise InsufficientBalanceException()
+        if acc.balance < amount:
+            raise InsufficientBalanceException()
 
-            acc.balance -= amount
-            acc.updated_at = datetime.now(timezone.utc)
+        acc.balance -= amount
+        acc.updated_at = datetime.now(timezone.utc)
 
-            tx = Transaction(
-                user_id=str(user_id),
-                amount=-amount,
-                reason=reason.value,
-                reference_id=str(reference_id) if reference_id else None,
-            )
-            self._session.add(tx)
-            self._session.flush()
-            return UUID(tx.id)
+        tx = Transaction(
+            user_id=str(user_id),
+            amount=-amount,
+            reason=reason.value,
+            reference_id=str(reference_id) if reference_id else None,
+        )
+        self._session.add(tx)
+        self._session.flush()
+        transaction_id = tx.id
+
+        return UUID(transaction_id)
+
     
     def get_transaction_history(self, user_id: UUID, limit: int = 50, offset: int = 0) -> list[Transaction]: 
         """Получить историю транзакций"""

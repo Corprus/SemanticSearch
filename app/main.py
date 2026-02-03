@@ -2,11 +2,12 @@
 
 import os
 from fastapi import FastAPI
-from health import router as health_router
-from database.config import get_settings
+from routes.health import router as health_router
+from common.config import get_settings
 from infrastructure.initializer import init
 
-import os, time, socket
+import time
+import socket
 
 app = FastAPI(title="Semantic Search Service")
 

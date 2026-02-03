@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Iterator
 from fastapi import Depends
 from sqlalchemy.orm import Session
+from functools import lru_cache
 
 from common.database.database import get_session
 
@@ -15,8 +16,9 @@ from services.search_service import SearchService
 from services.index_service import IndexService
 
 from infrastructure.md5_hasher import Md5PasswordHasher
+from infrastructure.jwt_handler import JwtHandler, JwtConfig
 from common.infrastructure.vector_index_model import VectorIndexModel
-
+from common.config import get_settings
 
 def get_db() -> Iterator[Session]:
     with get_session() as session:
@@ -43,7 +45,7 @@ def get_user_service(db: Session = Depends(get_db)) -> UserService:
 def get_auth_service(
     user_service: UserService = Depends(get_user_service),
 ) -> AuthService:
-    return AuthService(user_service=user_service, password_hasher=get_password_hasher())
+    return AuthService(user_service=user_service, password_hasher=get_password_hasher(), jwt_handler=get_jwt_handler())
 
 
 def get_index_service(
@@ -69,3 +71,14 @@ def get_search_service(
     index: IndexService = Depends(get_index_service),
 ) -> SearchService:
     return SearchService(session=db, transaction_service=tx)
+
+@lru_cache()
+def get_jwt_handler() -> JwtHandler:
+    settings = get_settings()
+
+    config = JwtConfig(
+        secret_key=settings.JWT_SECRET_KEY,
+        algorithm=settings.JWT_ALGORITHM,
+        access_token_ttl_minutes=settings.JWT_ACCESS_TOKEN_TTL_MINUTES,
+    )
+    return JwtHandler(config)

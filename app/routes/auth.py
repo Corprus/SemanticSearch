@@ -2,29 +2,26 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends
+from fastapi.security import OAuth2PasswordRequestForm
+
 from pydantic import BaseModel
-from uuid import UUID
 from services.auth_service import AuthService
 from infrastructure.deps import get_auth_service
 
 router = APIRouter()
 
-
-class LoginRequest(BaseModel):
-    login: str
-    password: str
-
-
 class TokenResponse(BaseModel):
-    token: str
+    access_token: str
+    token_type: str
 
 
 @router.post("/login", response_model=TokenResponse, summary="Авторизовать пользователя (пока заглушка)")
-def login(req: LoginRequest, auth: AuthService = Depends(get_auth_service)):
-    token = auth.login(req.login, req.password)
-    return TokenResponse(token=token)
+def login(form_data: OAuth2PasswordRequestForm = Depends(),
+           auth: AuthService = Depends(get_auth_service)):
+    token = auth.login(form_data.username, form_data.password)
+    return TokenResponse(access_token=token, token_type="bearer")
 
-@router.post("/logout/{user_id}", summary="Разлогинить пользователя (пока заглушка)")
-def logout(user_id: UUID, auth: AuthService = Depends(get_auth_service)):
-    auth.logout(user_id)
+@router.post("/logout", summary="Разлогинить пользователя (заглушка, в реальности просто удалим токен с фронта)")
+def logout(auth: AuthService = Depends(get_auth_service)):
+    auth.logout()
     return
