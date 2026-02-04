@@ -5,8 +5,13 @@ import logging
 from urllib.parse import quote
 from celery import Celery
 
-from common.config import get_settings
-from common.database.database import init_db
+"""Celery client for enqueueing background jobs.
+
+Note on testability:
+This module must be importable in unit tests without requiring a real `.env`
+or a running Postgres. Therefore we avoid DB initialization and strict
+settings validation at import time.
+"""
 
 
 logging.getLogger("httpx").setLevel(logging.ERROR)
@@ -29,8 +34,6 @@ RABBITMQ_URL = (
 #Делаю имена, чтобы не импортировать зависимости в app
 TASK_EMBED_DOCUMENT_NAME = os.getenv("TASK_EMBED_DOCUMENT_NAME", "embed_document")
 TASK_PROCESS_SEARCH_QUERY_NAME = os.getenv("TASK_PROCESS_SEARCH_QUERY_NAME", "process_search_query")
-
-init_db(get_settings())
 
 # --- Celery app ---
 worker_app = Celery(
