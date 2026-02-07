@@ -44,5 +44,7 @@ if __name__ == "__main__":
     print(settings.POSTGRES_HOST)
     print(settings.POSTGRES_DB)
     print(settings.POSTGRES_USER)
+    drop_all = bool(os.getenv("DROP_DB", False))
+    print(f"Drop_db is {drop_all}")
     wait_amqp()
-    init(settings, drop_all=True)
+    init(settings, drop_all=drop_all)

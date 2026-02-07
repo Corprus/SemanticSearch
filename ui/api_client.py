@@ -12,7 +12,7 @@ class ApiClient:
         self.base_url = base_url.rstrip("/")
         self.token = token
 
-    def set_token(self, token: str) -> None:
+    def set_token(self, token: str | None) -> None:
         self.token = token
 
     def logout(self) -> None:

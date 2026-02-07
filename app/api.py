@@ -93,6 +93,8 @@ app = create_application()
 @app.on_event("startup") 
 def on_startup():
     try:
+        drop_all = bool(os.getenv("DROP_DB", False))
+        logger.info(f"Drop_db is {drop_all}")
         logger.info("Initializing database...")
         settings = get_settings()
         init_db(settings)
@@ -106,7 +108,7 @@ def on_startup():
         print(settings.POSTGRES_DB)
         print(settings.POSTGRES_USER)
         wait_amqp()
-        init(settings, drop_all=True)
+        init(settings, drop_all)
         logger.info("Application startup completed successfully")
     except Exception as e:
         logger.error(f"Startup failed: {str(e)}")

@@ -1,6 +1,6 @@
 # app/routes/documents.py
 from __future__ import annotations
-
+from datetime import datetime
 from uuid import UUID
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, status, Query
 from pydantic import BaseModel
@@ -24,6 +24,8 @@ class DocumentResponse(BaseModel):
     title: str
     content: str
     index_status: str
+    created_at: datetime
+    indexed_at: datetime | None = None
 
 
 @router.put("", response_model=DocumentResponse, summary="Добавить документ пользователя")
@@ -38,7 +40,9 @@ def add_document(
         owner_id=UUID(doc.owner_id),
         title=doc.title,
         content=doc.content,
-        index_status=doc.index_status
+        index_status=doc.index_status,
+        created_at=doc.created_at,
+        indexed_at=doc.indexed_at
     )
 
 @router.post(
@@ -83,7 +87,9 @@ async def upload_document(
         owner_id=UUID(doc.owner_id),
         title=doc.title,
         content=doc.content,
-        index_status=doc.index_status
+        index_status=doc.index_status,
+        created_at=doc.created_at,
+        indexed_at=doc.indexed_at
     )
 
 
@@ -101,7 +107,9 @@ def get_document(
         owner_id=UUID(doc.owner_id),
         title=doc.title,
         content=doc.content,
-        index_status=doc.index_status
+        index_status=doc.index_status,
+        created_at=doc.created_at,
+        indexed_at=doc.indexed_at
     )
 
 
@@ -115,7 +123,9 @@ def list_documents(user_id: UUID | None = Query(default=None), docs: DocumentSer
             owner_id=UUID(doc.owner_id),
             title=doc.title,
             content=doc.content,
-            index_status=doc.index_status
+            index_status=doc.index_status,
+            indexed_at=doc.indexed_at,
+            created_at=doc.created_at
         )
         for doc in items
     ]
